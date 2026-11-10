@@ -1,4 +1,4 @@
-<h1 class="heading">Tasks</h1>
+<h1 class="heading" #heading tabindex="-1">Tasks</h1>
 <div class="layout">
   <app-task-form
     [submitting]="submitting()"
@@ -18,9 +18,9 @@
         <app-empty-state message="No tasks yet — add your first one" />
       } @else {
         <app-task-list [tasks]="store.tasks()" />
-        @if (store.loadingMore()) {
-          <p class="status" role="status" aria-live="polite">Loading more tasks…</p>
-        }
+        <p class="visually-hidden" role="status" aria-live="polite">
+          {{ store.loadingMore() ? 'Loading more tasks…' : '' }}
+        </p>
         @if (store.loadMoreError()) {
           <p class="alert" role="alert">Couldn't load more tasks.</p>
         }
@@ -30,7 +30,8 @@
             type="button"
             class="load-more"
             [disabled]="store.loadingMore()"
-            (click)="store.loadMore()"
+            [disabledInteractive]="true"
+            (click)="onLoadMore()"
           >
             {{ store.loadingMore() ? 'Loading…' : 'Load more' }}
           </button>

@@ -1,6 +1,6 @@
 <ul class="tasks">
   @for (task of tasks(); track task.id) {
-    <li class="task">
+    <li class="task" tabindex="-1">
       <div class="head">
         <span class="title">{{ task.title }}</span>
         <app-status-badge [status]="task.status" />

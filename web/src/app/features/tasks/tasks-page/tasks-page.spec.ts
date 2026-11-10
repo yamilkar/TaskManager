@@ -134,7 +134,7 @@ describe('TasksPage', () => {
     expect(loadMoreButton(el)).toBeUndefined();
   });
 
-  it('TasksPage: disables Load more and shows Loading… while loading', async () => {
+  it('TasksPage: marks Load more inert and shows Loading… while loading', async () => {
     const { fixture, el } = setup();
     ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: 'c1' });
     await settle(fixture);
@@ -142,13 +142,79 @@ describe('TasksPage', () => {
     loadMoreButton(el)!.click();
     fixture.detectChanges();
     const button = loadMoreButton(el)!;
-    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
     expect(button.textContent).toContain('Loading…');
     expect(el.querySelector('[role=status]')?.textContent).toContain('Loading more tasks…');
 
     ctrl.expectOne((r) => r.method === 'GET').flush({ items: [], nextCursor: null });
     await settle(fixture);
-    expect(el.textContent).not.toContain('Loading more tasks…');
+    expect(el.querySelector('[role=status]')?.textContent?.trim()).toBe('');
+  });
+
+  it('TasksPage: keeps Load more focusable (not natively disabled) while loading', async () => {
+    const { fixture, el } = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: 'c1' });
+    await settle(fixture);
+
+    const button = loadMoreButton(el)!;
+    button.focus();
+    button.click();
+    fixture.detectChanges();
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(document.activeElement).toBe(button);
+    button.click(); // inert while loading: no second request
+    ctrl.expectOne((r) => r.method === 'GET').flush({ items: [mk('2', 'B')], nextCursor: 'c2' });
+    await settle(fixture);
+  });
+
+  it('TasksPage: moves focus to the first new row after Load more appends a page', async () => {
+    const { fixture, el } = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: 'c1' });
+    await settle(fixture);
+    document.body.appendChild(el);
+
+    const button = loadMoreButton(el)!;
+    button.focus();
+    button.click();
+    ctrl.expectOne((r) => r.method === 'GET').flush({ items: [mk('2', 'B'), mk('3', 'C')], nextCursor: null });
+    await settle(fixture);
+    await settle(fixture);
+
+    const rows = el.querySelectorAll('li');
+    expect(document.activeElement).toBe(rows[1]);
+    expect(rows[1].getAttribute('tabindex')).toBe('-1');
+    el.remove();
+  });
+
+  it('TasksPage: moves focus to the heading when Load more adds no rows', async () => {
+    const { fixture, el } = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: 'c1' });
+    await settle(fixture);
+    document.body.appendChild(el);
+
+    loadMoreButton(el)!.click();
+    ctrl.expectOne((r) => r.method === 'GET').flush({ items: [], nextCursor: null });
+    await settle(fixture);
+    await settle(fixture);
+
+    expect(document.activeElement).toBe(el.querySelector('h1'));
+    el.remove();
+  });
+
+  it('TasksPage: keeps the status live region rendered and empty when not loading more', async () => {
+    const { fixture, el } = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: 'c1' });
+    await settle(fixture);
+
+    const region = el.querySelector('[role=status]')!;
+    expect(region.textContent?.trim()).toBe('');
+    loadMoreButton(el)!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('[role=status]')).toBe(region);
+    expect(region.textContent).toContain('Loading more tasks…');
+    ctrl.expectOne((r) => r.method === 'GET').flush({ items: [], nextCursor: null });
+    await settle(fixture);
   });
 
   it("TasksPage: shows \"Couldn't load more tasks.\" and keeps the list when loading more fails", async () => {
