@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     steps:
-      - name: Check for API key
+      - name: Check for Claude token
         id: key
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "ANTHROPIC_API_KEY is not available (for example a PR from a fork); skipping review."
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "CLAUDE_CODE_OAUTH_TOKEN is not available (for example a PR from a fork); skipping review."
             echo "available=false" >> "$GITHUB_OUTPUT"
           else
             echo "available=true" >> "$GITHUB_OUTPUT"
@@ -38,7 +38,9 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         if: steps.key.outputs.available == 'true'
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Claude subscription token (from `claude setup-token`); usage counts
+          # against the subscription instead of API billing.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Use the job's own GITHUB_TOKEN (limited to the permissions above)
           # instead of an OIDC exchange for the Claude GitHub App token.
           github_token: ${{ secrets.GITHUB_TOKEN }}

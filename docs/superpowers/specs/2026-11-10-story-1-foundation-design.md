@@ -316,7 +316,7 @@ Require a PR, all CI jobs green, and at least one **human** approval; block dire
 
 - Uses `anthropics/claude-code-action` on PR open and synchronize, prompted to apply the Superpowers code-review approach and `.claude/rules/rules.md`.
 - Permissions: `contents: read`, `pull-requests: write`. It can comment, but cannot push, approve, resolve, or merge.
-- Requires an `ANTHROPIC_API_KEY` repository secret, which the repo owner adds.
+- Authenticates to Claude with a `CLAUDE_CODE_OAUTH_TOKEN` repository secret (from `claude setup-token`, billed to the owner's Claude subscription), which the repo owner adds. GitHub access uses the job's own `GITHUB_TOKEN` (no OIDC / GitHub App exchange).
 
 ### 8.4 Documentation
 

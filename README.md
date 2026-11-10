@@ -167,7 +167,10 @@ docs/superpowers/     design spec and implementation plan
 
 ### One-time setup (repository owner)
 
-1. **AI review secret**: Settings → Secrets and variables → Actions → New repository secret named `ANTHROPIC_API_KEY`. Without it the review job skips itself.
+1. **AI review secret** (uses a Claude Pro/Max subscription, not API billing):
+   - Locally, run `claude setup-token` and copy the token it prints.
+   - Settings → Secrets and variables → Actions → New repository secret named `CLAUDE_CODE_OAUTH_TOKEN`, or run `gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo <owner>/TaskManager`.
+   - Without it the review job skips itself. Comments are posted with the job's own `GITHUB_TOKEN` as `github-actions[bot]`.
 2. **Branch protection on `main`**: Settings → Branches → add a rule for `main` that:
    - requires a pull request before merging, with at least 1 approval from a human, and dismisses stale approvals;
    - requires status checks `backend`, `frontend` and `repo-hygiene` to pass, with branches up to date;
