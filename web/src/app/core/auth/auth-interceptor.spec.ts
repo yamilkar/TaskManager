@@ -41,6 +41,14 @@ describe('authInterceptor', () => {
     expect(ctrl.expectOne('http://evil.example.com/steal').request.headers.has('Authorization')).toBe(false);
   });
 
+  it('does not attach the bearer to lookalike hosts or ports', () => {
+    http.get('http://localhost:5080.evil.com/x').subscribe();
+    http.get('http://localhost:50801/x').subscribe();
+
+    expect(ctrl.expectOne('http://localhost:5080.evil.com/x').request.headers.has('Authorization')).toBe(false);
+    expect(ctrl.expectOne('http://localhost:50801/x').request.headers.has('Authorization')).toBe(false);
+  });
+
   it('does not attach a header when there is no token', () => {
     token.set(null);
     http.get('http://localhost:5090/api/v1/tasks').subscribe();
