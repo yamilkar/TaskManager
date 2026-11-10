@@ -1,4 +1,8 @@
 import { Routes } from '@angular/router';
 
-/** Placeholder until Task 15 replaces it with the real tasks feature routes. */
-export const TASKS_ROUTES: Routes = [{ path: '', children: [] }];
+export const TASKS_ROUTES: Routes = [
+  {
+    path: '',
+    loadComponent: () => import('./tasks-page/tasks-page').then((m) => m.TasksPage),
+  },
+];
