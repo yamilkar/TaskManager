@@ -10,21 +10,22 @@ namespace TaskManager.Users.Infrastructure.Persistence;
 public sealed class DynamoDbUserRepository(IAmazonDynamoDB db, IOptions<DynamoDbOptions> options) : IUserRepository
 {
     private const int MaxAttempts = 3;
+
+    // Positions of the puts in TransactItems. DynamoDB reports CancellationReasons in the same order,
+    // so this order is load-bearing: the request and the reason lookup both use these constants.
+    private const int UserItemIndex = 0;
     private const int EmailGuardIndex = 1;
+    private const string ConditionalCheckFailed = "ConditionalCheckFailed";
     private const string NotExists = "attribute_not_exists(pk)";
 
     private string Table => options.Value.TableName;
 
     public async Task<AddUserResult> TryAddAsync(User user, CancellationToken ct)
     {
-        var request = new TransactWriteItemsRequest
-        {
-            TransactItems =
-            [
-                new TransactWriteItem { Put = new Put { TableName = Table, Item = UserItemMapper.ToUserItem(user), ConditionExpression = NotExists } },
-                new TransactWriteItem { Put = new Put { TableName = Table, Item = UserItemMapper.ToEmailGuardItem(user), ConditionExpression = NotExists } },
-            ],
-        };
+        var items = new TransactWriteItem[2];
+        items[UserItemIndex] = new TransactWriteItem { Put = new Put { TableName = Table, Item = UserItemMapper.ToUserItem(user), ConditionExpression = NotExists } };
+        items[EmailGuardIndex] = new TransactWriteItem { Put = new Put { TableName = Table, Item = UserItemMapper.ToEmailGuardItem(user), ConditionExpression = NotExists } };
+        var request = new TransactWriteItemsRequest { TransactItems = [.. items] };
 
         for (var attempt = 1; ; attempt++)
         {
@@ -37,11 +38,18 @@ public sealed class DynamoDbUserRepository(IAmazonDynamoDB db, IOptions<DynamoDb
             {
                 var codes = ex.CancellationReasons?.Select(r => r.Code).ToList() ?? [];
 
-                // Reasons are positional. Only a failed email guard (index 1) means the email is taken;
-                // a failed user item put (index 0) is unexpected and must surface.
-                if (codes.Count > EmailGuardIndex && codes[EmailGuardIndex] == "ConditionalCheckFailed")
+                // The email is taken only when the guard failed and the user item did not. A failed user
+                // item put (a duplicate user id) is unexpected and must surface, even if the guard failed too.
+                var guardFailed = codes.Count > EmailGuardIndex && codes[EmailGuardIndex] == ConditionalCheckFailed;
+                var userItemFailed = codes.Count > UserItemIndex && codes[UserItemIndex] == ConditionalCheckFailed;
+                if (guardFailed && !userItemFailed)
                 {
                     return AddUserResult.EmailTaken;
+                }
+
+                if (userItemFailed)
+                {
+                    throw;
                 }
 
                 if (codes.Contains("TransactionConflict"))

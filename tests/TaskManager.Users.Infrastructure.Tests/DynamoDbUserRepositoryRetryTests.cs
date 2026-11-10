@@ -45,6 +45,58 @@ public sealed class DynamoDbUserRepositoryRetryTests
     }
 
     [Fact]
+    public async Task TryAddAsync_conditionalCheckFailedOnBothPuts_rethrows()
+    {
+        _db.TransactWriteItemsAsync(Arg.Any<TransactWriteItemsRequest>(), Arg.Any<CancellationToken>())
+            .Throws(Canceled("ConditionalCheckFailed", "ConditionalCheckFailed"));
+
+        await Should.ThrowAsync<TransactionCanceledException>(() => Sut.TryAddAsync(NewUser(), default));
+    }
+
+    [Fact]
+    public async Task TryAddAsync_nullCancellationReasons_rethrows()
+    {
+        _db.TransactWriteItemsAsync(Arg.Any<TransactWriteItemsRequest>(), Arg.Any<CancellationToken>())
+            .Throws(new TransactionCanceledException("canceled") { CancellationReasons = null });
+
+        await Should.ThrowAsync<TransactionCanceledException>(() => Sut.TryAddAsync(NewUser(), default));
+    }
+
+    [Fact]
+    public async Task TryAddAsync_emptyCancellationReasons_rethrows()
+    {
+        _db.TransactWriteItemsAsync(Arg.Any<TransactWriteItemsRequest>(), Arg.Any<CancellationToken>())
+            .Throws(Canceled());
+
+        await Should.ThrowAsync<TransactionCanceledException>(() => Sut.TryAddAsync(NewUser(), default));
+    }
+
+    [Fact]
+    public async Task TryAddAsync_conflictOnEmailGuardThenSuccess_returnsAdded()
+    {
+        _db.TransactWriteItemsAsync(Arg.Any<TransactWriteItemsRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                _ => throw Canceled("None", "TransactionConflict"),
+                _ => Task.FromResult(new TransactWriteItemsResponse()));
+
+        var result = await Sut.TryAddAsync(NewUser(), default);
+
+        result.ShouldBe(AddUserResult.Added);
+    }
+
+    [Fact]
+    public async Task TryAddAsync_conflictOnEmailGuardEveryAttempt_returnsBusy()
+    {
+        _db.TransactWriteItemsAsync(Arg.Any<TransactWriteItemsRequest>(), Arg.Any<CancellationToken>())
+            .Throws(Canceled("None", "TransactionConflict"));
+
+        var result = await Sut.TryAddAsync(NewUser(), default);
+
+        result.ShouldBe(AddUserResult.Busy);
+        await _db.Received(3).TransactWriteItemsAsync(Arg.Any<TransactWriteItemsRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task TryAddAsync_cancelledDuringRetryDelay_throwsOperationCanceled()
     {
         using var cts = new CancellationTokenSource();

@@ -11,7 +11,11 @@ public sealed class UserSeeder(
     IClock clock,
     IOptions<UserSeedOptions> options)
 {
-    /// <summary>Idempotent: an already-registered demo email makes <c>TryAddAsync</c> return EmailTaken, which is ignored.</summary>
+    /// <summary>
+    /// Idempotent: does nothing when the demo email is already registered. The demo user has a fixed id,
+    /// so re-adding it would fail the user item put too, which the repository rethrows rather than
+    /// reporting EmailTaken.
+    /// </summary>
     public async Task SeedAsync(CancellationToken ct)
     {
         var seed = options.Value;
@@ -20,6 +24,11 @@ public sealed class UserSeeder(
         if (email.IsFailure)
         {
             throw new InvalidOperationException($"{UserSeedOptions.SectionName}:DemoEmail is not a valid email address.");
+        }
+
+        if (await repository.GetByEmailAsync(email.Value, ct) is not null)
+        {
+            return;
         }
 
         var user = User.Create(seed.DemoUserId, seed.DemoFullName, email.Value, hasher.Hash(seed.DemoPassword), clock.UtcNow);
