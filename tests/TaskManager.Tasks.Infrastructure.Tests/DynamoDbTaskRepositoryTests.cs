@@ -142,6 +142,29 @@ public sealed class DynamoDbTaskRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ListByUserAsync_forgedWellFormedCursorForMissingItem_returnsResultWithoutThrowing()
+    {
+        var userId = Guid.NewGuid();
+        var at = DateTimeOffset.Parse("2026-11-10T08:00:00Z");
+        for (var i = 0; i < 3; i++)
+        {
+            await _repo.AddAsync(NewTaskAt(userId, at.AddSeconds(i)), default);
+        }
+
+        var forgedId = Guid.NewGuid().ToString("D");
+        var cursor = TaskCursor.Encode(new Dictionary<string, AttributeValue>
+        {
+            ["userId"] = new() { S = userId.ToString("D") },
+            ["_id"] = new() { S = forgedId },
+            [TaskItemMapper.CreatedAtIdAttribute] = new() { S = at.AddSeconds(1).UtcDateTime.ToString("O") + "#" + forgedId },
+        });
+
+        var page = await _repo.ListByUserAsync(userId, 10, cursor, default);
+
+        page.Items.Count.ShouldBeLessThanOrEqualTo(3);
+    }
+
+    [Fact]
     public async Task AddAsync_rejects_duplicate_id()
     {
         var task = NewTask(Guid.NewGuid());

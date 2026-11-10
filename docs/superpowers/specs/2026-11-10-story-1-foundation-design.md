@@ -373,3 +373,4 @@ Task update and delete (sub-project 2); AWS IaC, deployment, and CD (sub-project
 - **`restoreSession`** should only clear the session on 401/404, to avoid logging users out on cold-start 5xx responses.
 - **Register endpoint** is now limited (5 per minute per IP, separate bucket from login). It still runs the PBKDF2 hash before the duplicate-email check, and it returns `409` for a taken email, which reveals that the email is registered. Revisit both if abuse shows up (an edge rate rule; a generic "check your email" response once email verification exists).
 - **`config.json`** is fetched from the root and ignores the base href.
+- **Tasks table**: create it from `TasksTableDefinition` (`createdAtId` attribute plus the `ByCreatedAt` LSI, projection ALL). An LSI cannot be added to a live table, and a table without it makes every `GET /api/v1/tasks` fail. Story 8's due-date LSI must also exist before the first deploy.
