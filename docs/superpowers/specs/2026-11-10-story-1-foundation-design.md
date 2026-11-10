@@ -372,5 +372,6 @@ Task update and delete (sub-project 2); AWS IaC, deployment, and CD (sub-project
 - **JWT signing key** must come from Secrets Manager (injected as environment variable or configuration).
 - **`restoreSession`** should only clear the session on 401/404, to avoid logging users out on cold-start 5xx responses.
 - **Register endpoint** is now limited (5 per minute per IP, separate bucket from login). It still runs the PBKDF2 hash before the duplicate-email check, and it returns `409` for a taken email, which reveals that the email is registered. Revisit both if abuse shows up (an edge rate rule; a generic "check your email" response once email verification exists).
+- **Concurrent registration of the same email**: `DynamoDbUserRepository.TryAddAsync` retries `TransactionConflict` three times, then rethrows, which surfaces as `500`. Decide between a retryable `503` (new `ErrorType`) and `409` (email taken), and add a test. Deferred from the PR #29 review.
 - **Task list is unbounded**: `GET /api/v1/tasks` reads every page of the caller's tasks and sorts them in memory, and there is no per-user task cap. Acceptable under YAGNI for Story 1; add pagination (DynamoDB `ExclusiveStartKey`) and a sort key or GSI on `createdAt` when a story needs it.
 - **`config.json`** is fetched from the root and ignores the base href.
