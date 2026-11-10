@@ -77,6 +77,37 @@ describe('TaskForm', () => {
     expect(input.min).toBe(today);
   });
 
+  it('TaskForm: rejects a due date before local today with the server message', () => {
+    type(q('input[name=title]'), 'T');
+    type(q('input[name=dueDate]'), '2000-01-01');
+    submit();
+    fixture.detectChanges();
+    expect(emitted).toEqual([]);
+    expect(el.textContent).toContain('Due date cannot be in the past.');
+  });
+
+  it('TaskForm: accepts local today as due date', () => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    type(q('input[name=title]'), 'T');
+    type(q('input[name=dueDate]'), today);
+    submit();
+    expect(emitted.length).toBe(1);
+  });
+
+  it('TaskForm: recomputes the min date after reset (no stale min after midnight)', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(2099, 0, 5, 12));
+      fixture.componentInstance.reset();
+      fixture.detectChanges();
+      expect(q('input[name=dueDate]').min).toBe('2099-01-05');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('TaskForm: displays server field errors under matching controls', () => {
     fixture.componentRef.setInput('serverErrors', {
       title: ['Title is taken.'],

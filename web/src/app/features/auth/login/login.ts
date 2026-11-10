@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, inject, input, signal, viewChild } from '@angular/core';
+import { FormBuilder, FormGroupDirective, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
@@ -40,6 +40,7 @@ export class Login {
     email: ['', [Validators.required, Validators.email]],
     password: ['', Validators.required],
   });
+  private readonly formDirective = viewChild.required(FormGroupDirective);
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
@@ -64,7 +65,8 @@ export class Login {
     } catch (e) {
       const err = e as Partial<AppError>;
       this.errorMessage.set(err.status === 401 ? INVALID_CREDENTIALS : (err.message ?? INVALID_CREDENTIALS));
-      this.form.controls.password.reset('');
+      // resetForm also clears the directive's submitted flag, so no "required" error shows on the emptied field.
+      this.formDirective().resetForm({ email: this.form.controls.email.value, password: '' });
     } finally {
       this.submitting.set(false);
     }

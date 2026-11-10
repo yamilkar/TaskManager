@@ -62,6 +62,25 @@ describe('Login', () => {
     expect(el.querySelector('[role=alert]')?.textContent).toContain('Invalid email or password.');
     expect(email(el).value).toBe('ana@x.com');
     expect(password(el).value).toBe('');
+    expect(el.textContent).not.toContain('Password is required.');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('Login: on 429 shows the server-provided rate limit message and nothing else changes', async () => {
+    const message = 'Too many sign-in attempts. Please wait a minute and try again.';
+    store.login.mockRejectedValue({ status: 429, message, fieldErrors: {} } satisfies AppError);
+    const { fixture, el } = setup();
+    type(email(el), 'ana@x.com');
+    type(password(el), 'Wrong123!');
+    fixture.detectChanges();
+
+    submit(el).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(el.querySelector('[role=alert]')?.textContent).toContain(message);
+    expect(email(el).value).toBe('ana@x.com');
+    expect(el.textContent).not.toContain('Password is required.');
     expect(navigate).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, inject, input, output, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
@@ -15,6 +15,11 @@ function localToday(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function notBeforeLocalToday(control: AbstractControl): ValidationErrors | null {
+  const value = control.value;
+  return typeof value === 'string' && value !== '' && value < localToday() ? { pastDate: true } : null;
 }
 
 @Component({
@@ -43,12 +48,12 @@ export class TaskForm {
   readonly serverErrors = input<Record<string, string[]>>({});
   readonly submitted = output<CreateTaskRequest>();
 
-  protected readonly today = localToday();
+  protected readonly today = signal(localToday());
   protected readonly form = inject(FormBuilder).nonNullable.group({
     title: ['', [Validators.required, notBlank, Validators.maxLength(200)]],
     description: ['', [Validators.maxLength(2000)]],
     status: ['ToDo' as TaskStatus],
-    dueDate: [''],
+    dueDate: ['', [notBeforeLocalToday]],
   });
 
   constructor() {
@@ -68,6 +73,7 @@ export class TaskForm {
   /** Called by the parent after a successful create. */
   reset(): void {
     this.form.reset({ title: '', description: '', status: 'ToDo', dueDate: '' });
+    this.today.set(localToday());
     this.cdr.markForCheck();
   }
 
@@ -75,6 +81,8 @@ export class TaskForm {
     if (this.submitting()) {
       return;
     }
+    this.today.set(localToday());
+    this.form.controls.dueDate.updateValueAndValidity();
     this.form.markAllAsTouched();
     if (this.form.invalid) {
       return;
