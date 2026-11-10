@@ -199,7 +199,8 @@ Expected: `Build succeeded. 0 Warning(s) 0 Error(s)`.
 public void Create_normalizes(string raw, string expected) => Email.Create(raw).Value.Value.ShouldBe(expected);
 [Theory, InlineData(null), InlineData(""), InlineData("   "), InlineData("no-at-sign"), InlineData("a@b"), InlineData("a b@c.com")]
 public void Create_rejects_invalid(string? raw) => Email.Create(raw).Error!.FieldErrors!.ShouldContainKey("email");
-[Fact] public void Create_rejects_longer_than_254() => Email.Create(new string('a', 245) + "@test.com").IsFailure.ShouldBeTrue();   // 254 chars passes? 245+9=254 → passes; use 246 for failure
+[Fact] public void Create_accepts_254_chars() => Email.Create(new string('a', 245) + "@test.com").IsSuccess.ShouldBeTrue();
+[Fact] public void Create_rejects_255_chars() => Email.Create(new string('a', 246) + "@test.com").IsFailure.ShouldBeTrue();
 [Fact] public void User_Create_trims_full_name() => User.Create(id, "  Ana  ", email, "hash", now).Value.FullName.ShouldBe("Ana");
 [Theory, InlineData(""), InlineData("   ")] public void User_Create_requires_full_name(string n) => ...FieldErrors!["fullName"].ShouldContain("Full name is required.");
 [Fact] public void User_Create_rejects_101_char_name() => ...
