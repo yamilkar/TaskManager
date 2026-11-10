@@ -2,14 +2,27 @@
 
 A task-management application: users register, sign in, and create and list **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
 
-This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task"). Task update and delete are sub-project 2 (pending). AWS deployment and continuous deployment are sub-project 3 (pending).
+This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task", merged) and Story 2 ("See my tasks", a paged task list, in review). Further stories, such as task update and delete, are pending. AWS deployment and continuous deployment are sub-project 3 (pending).
 
 | Capability | Status |
 |---|---|
 | Register, sign in, `GET /users/me` | Done |
-| Create, list, get a task | Done |
-| Update and delete a task | Pending (sub-project 2) |
+| Create, get a task | Done |
+| List tasks (paged, Load more) | Done in Story 2 (in review) |
+| Update and delete a task | Pending (later stories) |
 | AWS deployment and CD | Pending (sub-project 3) |
+
+## Project status
+
+| Work | Status |
+|---|---|
+| Sub-project 1: foundation and Story 1 (sign in, add my first task) | Merged in #29 (follow-ups #30, #31) |
+| Story 2 (#16): see my tasks, paged list | In review on `feature/story-2-see-my-tasks` |
+| Story 3 (#17) | In progress (spec and plan drafted, awaiting review) |
+| Stories 4-9 (#18-#23) | Pending |
+| AWS deployment and CD (sub-project 3) | Pending |
+
+Last updated: 2026-11-10
 
 ## Architecture
 
@@ -39,7 +52,7 @@ Domain and Application reference no `Amazon.*` or `Microsoft.AspNetCore.*` packa
 Key design points (full detail in `docs/superpowers/specs/2026-11-10-story-1-foundation-design.md`):
 
 - **Users table** (`TaskManager-Users`, pk `pk`) holds `USER#<guid>` items and `EMAIL#<normalized email>` guard items. Registration writes both in one `TransactWriteItems`, which makes email uniqueness safe under concurrency (a GSI cannot enforce uniqueness). Login uses two strongly consistent `GetItem` calls.
-- **Tasks table** (`TaskManager-Tasks`, pk `userId`, sk `_id`) means ownership is enforced by the key. Another user's task returns `404`.
+- **Tasks table** (`TaskManager-Tasks`, pk `userId`, sk `_id`) means ownership is enforced by the key. Another user's task returns `404`. The list is paged through the local secondary index `ByCreatedAt` (`userId` + `createdAtId`, the UTC round-trip `createdAt` + `#` + id) with consistent reads, one Query per page. The Angular list shows a "Load more" button while more pages exist.
 - **Auth**: JWT HS256, 60 minutes, issuer `taskmanager-users`, audience `taskmanager-api`. Wrong email and wrong password give the same `401`. Login and register are each limited to 5 requests per minute per IP, in separate buckets (`429`).
 - **Observability**: Serilog JSON logs with `X-Correlation-Id` (CloudWatch Logs when deployed) and CloudWatch Embedded Metric Format metrics. Passwords, hashes and tokens are never logged.
 
@@ -54,6 +67,8 @@ Key design points (full detail in `docs/superpowers/specs/2026-11-10-story-1-fou
 ```bash
 # 1. DynamoDB Local on :8000 and the admin UI on :8001
 docker compose up -d
+# After pulling, run `docker compose down && docker compose up -d` so the Tasks table is recreated with its index
+# (DynamoDB Local is in-memory, and a local secondary index can only be created with the table)
 
 # 2. The SAME signing key (32+ characters) on BOTH APIs
 dotnet user-secrets set Jwt:SigningKey "<32+ char value>" --project src/Users/TaskManager.Users.Api
@@ -137,7 +152,7 @@ Interactive docs (Scalar, Development only): `http://localhost:5080/scalar/v1` a
 | Users | `POST /api/v1/auth/login` | anonymous | `200` with `accessToken`, `400`, `401`, `429`, `503` (no client IP; hosting misconfiguration) |
 | Users | `GET /api/v1/users/me` | JWT | current user; the client also uses it to validate a stored session |
 | Tasks | `POST /api/v1/tasks` | JWT | `201`, `400`, `401` |
-| Tasks | `GET /api/v1/tasks` | JWT | caller's tasks, newest first |
+| Tasks | `GET /api/v1/tasks?limit=&cursor=` | JWT | `200 { items, nextCursor }`, newest first. `limit` 1-100 (default 20), else `400` `errors.limit`. `cursor` is opaque, taken from the previous `nextCursor`; a malformed, over-long, wrong-shape or another user's cursor gives `400` `errors.cursor`. The owner always comes from the token |
 | Tasks | `GET /api/v1/tasks/{id}` | JWT | `404` for missing or another user's task |
 | Both | `GET /health`, `GET /health/ready` | anonymous | liveness and readiness (DynamoDB `DescribeTable`) |
 
@@ -186,6 +201,6 @@ docs/superpowers/     design spec and implementation plan
 - **Token in `sessionStorage`**: simple across two separately hosted APIs, but exposed to XSS; an httpOnly cookie would resist it better.
 - **No end-to-end browser test suite** (unit and integration tests only).
 - **Browser console and wrong passwords**: a failed login returns `401` by design, and the browser itself logs "Failed to load resource: 401" for it. The app code emits no warnings or errors; the browser's own network log line cannot be suppressed without breaking the API contract.
-- No pagination parameters on the list endpoint; no password reset.
+- No password reset.
 - **Rate limits are per instance and per IP**: behind a proxy such as CloudFront, set `ForwardedHeaders:KnownProxies` or `KnownNetworks` (spec section 11).
-- **Deployment pending**: AWS hosting and CD are sub-project 3. Task update and delete are sub-project 2.
+- **Deployment pending**: AWS hosting and CD are sub-project 3. Task update and delete are later stories.

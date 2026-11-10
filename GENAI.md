@@ -102,6 +102,7 @@ Human-driven, during design:
 - Asked for an explanation of the **email-guard transaction versus a GSI**; a GSI cannot enforce uniqueness and is eventually consistent, so the guard item stays.
 - **No symbolic links**, enforced by a CI job.
 - The **Docker upgrade** was decided by the human; Testcontainers stays the default, with a `DYNAMODB_TEST_ENDPOINT` override for older Docker.
+- **Story 2 (paged task list)**: its acceptance criteria were already met by sub-project 1, so the story added acceptance evidence plus pagination through a local secondary index (`ByCreatedAt`, consistent reads, opaque user-bound cursor). The task reviews caught that crafted cursor values could reach DynamoDB as a `500` (fixed by validating cursor values) and that the length-guard test could not fail.
 
 AI-review-driven fixes during execution:
 
