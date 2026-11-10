@@ -1,0 +1,63 @@
+using Amazon.DynamoDBv2;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using NSubstitute;
+using TaskManager.Tasks.Application;
+using TaskManager.Tasks.Application.Ports;
+using TaskManager.Tasks.Infrastructure;
+
+namespace TaskManager.Tasks.Api.Tests;
+
+/// <summary>
+/// Hosts the Tasks API in the Testing environment. By default <see cref="ITaskService"/> is a substitute;
+/// with <c>useRealService</c> the real <c>TaskService</c> runs on top of a substituted <see cref="ITaskRepository"/>.
+/// </summary>
+public sealed class TasksApiFactory(string signingKey = TasksApiFactory.DefaultKey, bool useRealService = false)
+    : WebApplicationFactory<Program>
+{
+    public const string DefaultKey = "test-signing-key-0123456789-abcdefghijklmnop";
+
+    public string SigningKey { get; } = signingKey;
+
+    public ITaskService Tasks { get; } = Substitute.For<ITaskService>();
+
+    public ITaskRepository Repository { get; } = Substitute.For<ITaskRepository>();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.UseEnvironment("Testing");
+        builder.ConfigureAppConfiguration((_, config) =>
+            config.AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:SigningKey"] = SigningKey }));
+
+        builder.ConfigureServices(services =>
+        {
+            if (!useRealService)
+            {
+                Replace<ITaskService>(services, Tasks);
+            }
+
+            Replace<ITaskRepository>(services, Repository);
+            Replace<IAmazonDynamoDB>(services, Substitute.For<IAmazonDynamoDB>());
+
+            var bootstrappers = services.Where(d =>
+                d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(TasksDatabaseBootstrapper)).ToList();
+            foreach (var descriptor in bootstrappers)
+            {
+                services.Remove(descriptor);
+            }
+        });
+    }
+
+    private static void Replace<T>(IServiceCollection services, T instance) where T : class
+    {
+        foreach (var descriptor in services.Where(d => d.ServiceType == typeof(T)).ToList())
+        {
+            services.Remove(descriptor);
+        }
+
+        services.AddSingleton(instance);
+    }
+}
