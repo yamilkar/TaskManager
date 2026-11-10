@@ -31,7 +31,7 @@ public class DependencyRuleTests
     public void Core_layers_do_not_depend_on_aws_or_aspnet(string assembly) =>
         Types.InAssembly(Load(assembly)).ShouldNot()
             .HaveDependencyOnAny("Amazon", "Microsoft.AspNetCore", "TaskManager.ApiCommon", "TaskManager.Infrastructure.DynamoDb")
-            .GetResult().IsSuccessful.ShouldBeTrue();
+            .GetResult().ShouldBeSuccessful();
 
     [Theory]
     [InlineData("Users")]
@@ -39,7 +39,7 @@ public class DependencyRuleTests
     public void Domain_does_not_depend_on_application_or_infrastructure(string ctx) =>
         Types.InAssembly(Load($"TaskManager.{ctx}.Domain")).ShouldNot()
             .HaveDependencyOnAny($"TaskManager.{ctx}.Application", $"TaskManager.{ctx}.Infrastructure", $"TaskManager.{ctx}.Api")
-            .GetResult().IsSuccessful.ShouldBeTrue();
+            .GetResult().ShouldBeSuccessful();
 
     [Theory]
     [InlineData("Users")]
@@ -47,7 +47,7 @@ public class DependencyRuleTests
     public void Application_does_not_depend_on_infrastructure_or_api(string ctx) =>
         Types.InAssembly(Load($"TaskManager.{ctx}.Application")).ShouldNot()
             .HaveDependencyOnAny($"TaskManager.{ctx}.Infrastructure", $"TaskManager.{ctx}.Api")
-            .GetResult().IsSuccessful.ShouldBeTrue();
+            .GetResult().ShouldBeSuccessful();
 
     [Theory]
     [InlineData("Users", "Tasks")]
@@ -58,7 +58,26 @@ public class DependencyRuleTests
         {
             Types.InAssembly(Load($"TaskManager.{ctx}.{layer}")).ShouldNot()
                 .HaveDependencyOnAny($"TaskManager.{other}")
-                .GetResult().IsSuccessful.ShouldBeTrue($"{ctx}.{layer} must not depend on {other}");
+                .GetResult().ShouldBeSuccessful($"{ctx}.{layer} must not depend on {other}");
         }
+    }
+
+    [Theory]
+    [InlineData("TaskManager.Users.Infrastructure")]
+    [InlineData("TaskManager.Tasks.Infrastructure")]
+    [InlineData("TaskManager.ApiCommon")]
+    [InlineData("TaskManager.Infrastructure.DynamoDb")]
+    public void Infrastructure_and_building_blocks_do_not_depend_on_api_assemblies(string assembly) =>
+        Types.InAssembly(Load(assembly)).ShouldNot()
+            .HaveDependencyOnAny("TaskManager.Users.Api", "TaskManager.Tasks.Api")
+            .GetResult().ShouldBeSuccessful($"{assembly} must not depend on an Api assembly");
+}
+
+internal static class ArchitectureResultExtensions
+{
+    public static void ShouldBeSuccessful(this TestResult result, string? because = null)
+    {
+        var failing = string.Join(", ", result.FailingTypeNames ?? []);
+        result.IsSuccessful.ShouldBeTrue($"{because ?? "Dependency rule violated"}. Failing types: [{failing}]");
     }
 }

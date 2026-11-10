@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <PropertyGroup>
+    <UserSecretsId>taskmanager-users-api</UserSecretsId>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="../TaskManager.Users.Application/TaskManager.Users.Application.csproj" />
     <ProjectReference Include="../TaskManager.Users.Infrastructure/TaskManager.Users.Infrastructure.csproj" />

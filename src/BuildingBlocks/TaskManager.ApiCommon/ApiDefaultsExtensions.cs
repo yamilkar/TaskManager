@@ -97,7 +97,11 @@ public static class ApiDefaultsExtensions
         return builder;
     }
 
-    public static WebApplication UseTaskManagerApiDefaults(this WebApplication app)
+    /// <param name="beforeEndpoints">
+    /// Optional hook that runs after authentication/authorization and before endpoints are mapped,
+    /// e.g. to add <c>UseRateLimiter()</c>.
+    /// </param>
+    public static WebApplication UseTaskManagerApiDefaults(this WebApplication app, Action<WebApplication>? beforeEndpoints = null)
     {
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseExceptionHandler();
@@ -105,6 +109,7 @@ public static class ApiDefaultsExtensions
         app.UseCors(CorsPolicyName);
         app.UseAuthentication();
         app.UseAuthorization();
+        beforeEndpoints?.Invoke(app);
 
         app.MapControllers();
         app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
