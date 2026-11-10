@@ -1,6 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="AWSSDK.DynamoDBv2" />
+    <PackageReference Include="Testcontainers.DynamoDb" />
+    <PackageReference Include="xunit.extensibility.core" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../../src/BuildingBlocks/TaskManager.SharedKernel/TaskManager.SharedKernel.csproj" />
   </ItemGroup>
 
