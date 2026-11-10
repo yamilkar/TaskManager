@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Amazon.DynamoDBv2.Model;
 using TaskManager.Tasks.Application.Ports;
@@ -41,11 +42,30 @@ internal static class TaskCursor
         if (values is null
             || values.Count != Keys.Length
             || !Keys.All(values.ContainsKey)
-            || values[UserIdKey] != userId.ToString("D"))
+            || values[UserIdKey] != userId.ToString("D")
+            || !HasValidKeyValues(values))
         {
             throw new InvalidCursorException("Cursor is invalid.");
         }
 
         return Keys.ToDictionary(k => k, k => new AttributeValue { S = values[k] });
+    }
+
+    // Every value must be a real key value, otherwise DynamoDB rejects the request and the caller sees a 500.
+    private static bool HasValidKeyValues(Dictionary<string, string> values)
+    {
+        if (values.Values.Any(string.IsNullOrEmpty))
+        {
+            return false;
+        }
+
+        var id = values[IdKey];
+        var createdAtId = values[TaskItemMapper.CreatedAtIdAttribute];
+        var suffix = "#" + id;
+
+        return Guid.TryParseExact(id, "D", out _)
+            && createdAtId.EndsWith(suffix, StringComparison.Ordinal)
+            && DateTimeOffset.TryParseExact(
+                createdAtId[..^suffix.Length], "O", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _);
     }
 }
