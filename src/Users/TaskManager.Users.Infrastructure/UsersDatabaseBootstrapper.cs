@@ -11,7 +11,8 @@ public sealed class UsersDatabaseBootstrapper(
     IAmazonDynamoDB db,
     IOptions<DynamoDbOptions> dynamoOptions,
     IOptions<UserSeedOptions> seedOptions,
-    UserSeeder seeder) : IHostedService
+    UserSeeder seeder,
+    IHostEnvironment environment) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -23,6 +24,13 @@ public sealed class UsersDatabaseBootstrapper(
 
         if (seedOptions.Value.Enabled)
         {
+            // The demo password is public (README), so never create it in a deployed environment.
+            if (!environment.IsDevelopment())
+            {
+                throw new InvalidOperationException(
+                    $"{UserSeedOptions.SectionName}:Enabled is only allowed in Development; the demo credentials are public.");
+            }
+
             await seeder.SeedAsync(cancellationToken);
         }
     }

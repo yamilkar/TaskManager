@@ -11,7 +11,7 @@ public sealed class UserSeeder(
     IClock clock,
     IOptions<UserSeedOptions> options)
 {
-    /// <summary>Idempotent: an already-registered demo email makes <c>TryAddAsync</c> return false and is ignored.</summary>
+    /// <summary>Idempotent: an already-registered demo email makes <c>TryAddAsync</c> return EmailTaken, which is ignored.</summary>
     public async Task SeedAsync(CancellationToken ct)
     {
         var seed = options.Value;

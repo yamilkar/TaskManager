@@ -20,6 +20,7 @@ public abstract class ApiControllerBase : ControllerBase
             ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
             ErrorType.NotFound => StatusCodes.Status404NotFound,
             ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Unavailable => StatusCodes.Status503ServiceUnavailable,
             _ => StatusCodes.Status500InternalServerError,
         };
 
@@ -36,6 +37,7 @@ public abstract class ApiControllerBase : ControllerBase
             ErrorType.Unauthorized => "Unauthorized",
             ErrorType.NotFound => "Not Found",
             ErrorType.Conflict => "Conflict",
+            ErrorType.Unavailable => "Service Unavailable",
             _ => "Error",
         };
         details.Detail = error.Message;

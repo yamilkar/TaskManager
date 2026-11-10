@@ -103,6 +103,7 @@ public static class ApiDefaultsExtensions
     /// </param>
     public static WebApplication UseTaskManagerApiDefaults(this WebApplication app, Action<WebApplication>? beforeEndpoints = null)
     {
+        app.UseConfiguredForwardedHeaders(app.Configuration);
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseExceptionHandler();
         app.UseSerilogRequestLogging();

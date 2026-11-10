@@ -1,4 +1,6 @@
+using System.Net;
 using Amazon.DynamoDBv2;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -18,8 +20,14 @@ namespace TaskManager.Users.Api.Tests;
 /// <summary>
 /// Hosts the Users API in the Testing environment. By default every handler is a substitute;
 /// with <c>useRealHandlers</c> the real handlers run on top of a substituted <see cref="IUserRepository"/>.
+/// <paramref name="remoteIp"/> sets the TCP peer address (TestServer leaves it null), and
+/// <paramref name="settings"/> adds configuration such as trusted proxies.
 /// </summary>
-public sealed class UsersApiFactory(string signingKey = UsersApiFactory.DefaultKey, bool useRealHandlers = false)
+public sealed class UsersApiFactory(
+    string signingKey = UsersApiFactory.DefaultKey,
+    bool useRealHandlers = false,
+    IPAddress? remoteIp = null,
+    IReadOnlyDictionary<string, string?>? settings = null)
     : WebApplicationFactory<Program>
 {
     public const string DefaultKey = "test-signing-key-0123456789-abcdefghijklmnop";
@@ -41,10 +49,18 @@ public sealed class UsersApiFactory(string signingKey = UsersApiFactory.DefaultK
     {
         builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration((_, config) =>
-            config.AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:SigningKey"] = SigningKey }));
+            config.AddInMemoryCollection(new Dictionary<string, string?>(settings ?? new Dictionary<string, string?>())
+            {
+                ["Jwt:SigningKey"] = SigningKey,
+            }));
 
         builder.ConfigureServices(services =>
         {
+            if (remoteIp is not null)
+            {
+                services.AddSingleton<IStartupFilter>(new RemoteIpStartupFilter(remoteIp));
+            }
+
             if (!useRealHandlers)
             {
                 Replace(services, Register);
@@ -62,6 +78,20 @@ public sealed class UsersApiFactory(string signingKey = UsersApiFactory.DefaultK
                 services.Remove(descriptor);
             }
         });
+    }
+
+    /// <summary>Runs first in the pipeline and sets the connection's remote address, as a real server would.</summary>
+    private sealed class RemoteIpStartupFilter(IPAddress remoteIp) : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, nextMiddleware) =>
+            {
+                context.Connection.RemoteIpAddress = remoteIp;
+                return nextMiddleware(context);
+            });
+            next(app);
+        };
     }
 
     private static void Replace<T>(IServiceCollection services, T instance) where T : class

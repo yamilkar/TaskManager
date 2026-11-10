@@ -14,4 +14,6 @@ public sealed record Error(
     public static Error Conflict(string code, string message) => new(code, message, ErrorType.Conflict);
 
     public static Error Unauthorized(string code, string message) => new(code, message, ErrorType.Unauthorized);
+
+    public static Error Unavailable(string code, string message) => new(code, message, ErrorType.Unavailable);
 }

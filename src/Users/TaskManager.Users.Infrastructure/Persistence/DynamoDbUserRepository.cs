@@ -14,7 +14,7 @@ public sealed class DynamoDbUserRepository(IAmazonDynamoDB db, IOptions<DynamoDb
 
     private string Table => options.Value.TableName;
 
-    public async Task<bool> TryAddAsync(User user, CancellationToken ct)
+    public async Task<AddUserResult> TryAddAsync(User user, CancellationToken ct)
     {
         var request = new TransactWriteItemsRequest
         {
@@ -30,7 +30,7 @@ public sealed class DynamoDbUserRepository(IAmazonDynamoDB db, IOptions<DynamoDb
             try
             {
                 await db.TransactWriteItemsAsync(request, ct);
-                return true;
+                return AddUserResult.Added;
             }
             catch (TransactionCanceledException ex)
             {
@@ -38,11 +38,16 @@ public sealed class DynamoDbUserRepository(IAmazonDynamoDB db, IOptions<DynamoDb
 
                 if (codes.Contains("ConditionalCheckFailed"))
                 {
-                    return false;
+                    return AddUserResult.EmailTaken;
                 }
 
-                if (codes.Contains("TransactionConflict") && attempt < MaxAttempts)
+                if (codes.Contains("TransactionConflict"))
                 {
+                    if (attempt >= MaxAttempts)
+                    {
+                        return AddUserResult.Busy;
+                    }
+
                     await Task.Delay(Random.Shared.Next(10, 60) * attempt, ct);
                     continue;
                 }

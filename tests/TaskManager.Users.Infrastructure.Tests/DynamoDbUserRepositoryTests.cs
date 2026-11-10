@@ -2,6 +2,7 @@ using Amazon.DynamoDBv2;
 using Microsoft.Extensions.Options;
 using TaskManager.Infrastructure.DynamoDb;
 using TaskManager.Testing;
+using TaskManager.Users.Application.Ports;
 using TaskManager.Users.Domain;
 using TaskManager.Users.Infrastructure.Persistence;
 
@@ -35,7 +36,7 @@ public sealed class DynamoDbUserRepositoryTests : IAsyncLifetime
     {
         var user = NewUser();
 
-        (await _repo.TryAddAsync(user, default)).ShouldBeTrue();
+        (await _repo.TryAddAsync(user, default)).ShouldBe(AddUserResult.Added);
 
         var found = await _repo.GetByEmailAsync(user.Email, default);
         found.ShouldNotBeNull();
@@ -45,13 +46,13 @@ public sealed class DynamoDbUserRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task TryAddAsync_returns_false_for_duplicate_email_and_writes_no_second_user()
+    public async Task TryAddAsync_returns_EmailTaken_for_duplicate_email_and_writes_no_second_user()
     {
         var first = NewUser();
         var second = NewUser();
 
-        (await _repo.TryAddAsync(first, default)).ShouldBeTrue();
-        (await _repo.TryAddAsync(second, default)).ShouldBeFalse();
+        (await _repo.TryAddAsync(first, default)).ShouldBe(AddUserResult.Added);
+        (await _repo.TryAddAsync(second, default)).ShouldBe(AddUserResult.EmailTaken);
 
         (await _repo.GetByIdAsync(second.Id, default)).ShouldBeNull();
     }
@@ -61,8 +62,8 @@ public sealed class DynamoDbUserRepositoryTests : IAsyncLifetime
     {
         var results = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => Task.Run(() => _repo.TryAddAsync(NewUser(), default))));
 
-        results.Count(r => r).ShouldBe(1);
-        results.Count(r => !r).ShouldBe(4);
+        results.Count(r => r == AddUserResult.Added).ShouldBe(1);
+        results.Count(r => r == AddUserResult.EmailTaken).ShouldBe(4);
     }
 
     [Fact]

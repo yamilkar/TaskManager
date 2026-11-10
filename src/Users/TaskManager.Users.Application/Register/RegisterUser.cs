@@ -32,9 +32,12 @@ public sealed class RegisterUserHandler(
             return user.Error!;
         }
 
-        if (!await users.TryAddAsync(user.Value, ct))
+        switch (await users.TryAddAsync(user.Value, ct))
         {
-            return UserErrors.EmailAlreadyRegistered;
+            case AddUserResult.EmailTaken:
+                return UserErrors.EmailAlreadyRegistered;
+            case AddUserResult.Busy:
+                return UserErrors.RegistrationBusy;
         }
 
         metrics.Increment(UsersMetrics.UserRegistered);

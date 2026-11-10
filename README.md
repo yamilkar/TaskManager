@@ -115,10 +115,11 @@ Set through `appsettings*.json`, user-secrets or environment variables (`Section
 | `Jwt` | `SigningKey` | **required**, at least 32 bytes, never committed; must be identical on both APIs |
 | | `Issuer`, `Audience` | `taskmanager-users`, `taskmanager-api` |
 | | `LifetimeMinutes` | `60` |
-| `Seed` | `Enabled` | `false`; `true` in Development. Seeding is idempotent |
+| `Seed` | `Enabled` | `false`; `true` in Development. Seeding is idempotent, and enabling it outside Development fails startup (the demo password is public) |
 | | `DemoUserId`, `DemoEmail`, `DemoPassword`, `DemoFullName` | fixed demo user (`11111111-1111-1111-1111-111111111111`) |
 | `Cors` | `AllowedOrigins` | `["http://localhost:4200"]` |
 | `RateLimiting` | `LoginPermitLimit`, `RegisterPermitLimit` | `5` per minute per IP each (Users API only) |
+| `ForwardedHeaders` | `KnownProxies`, `KnownNetworks` | unset = `X-Forwarded-For` ignored; set to the proxy IPs or CIDR ranges (CloudFront, ALB) to rate-limit and log the real client IP |
 
 The client reads `web/public/config.json` at startup, so one build runs in any environment:
 
@@ -132,7 +133,7 @@ Interactive docs (Scalar, Development only): `http://localhost:5080/scalar/v1` a
 
 | API | Method and route | Auth | Notes |
 |---|---|---|---|
-| Users | `POST /api/v1/auth/register` | anonymous | `201`, `400`, `409` (email taken), `429` |
+| Users | `POST /api/v1/auth/register` | anonymous | `201`, `400`, `409` (email taken), `429`, `503` (concurrent registration of the same email; retry) |
 | Users | `POST /api/v1/auth/login` | anonymous | `200` with `accessToken`, `400`, `401`, `429` |
 | Users | `GET /api/v1/users/me` | JWT | current user; the client also uses it to validate a stored session |
 | Tasks | `POST /api/v1/tasks` | JWT | `201`, `400`, `401` |
@@ -186,5 +187,5 @@ docs/superpowers/     design spec and implementation plan
 - **No end-to-end browser test suite** (unit and integration tests only).
 - **Browser console and wrong passwords**: a failed login returns `401` by design, and the browser itself logs "Failed to load resource: 401" for it. The app code emits no warnings or errors; the browser's own network log line cannot be suppressed without breaking the API contract.
 - No pagination parameters on the list endpoint; no password reset.
-- **Rate limits are per instance and per IP**: behind a proxy such as CloudFront, forwarded headers must be configured first (spec section 11).
+- **Rate limits are per instance and per IP**: behind a proxy such as CloudFront, set `ForwardedHeaders:KnownProxies` or `KnownNetworks` (spec section 11).
 - **Deployment pending**: AWS hosting and CD are sub-project 3. Task update and delete are sub-project 2.

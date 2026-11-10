@@ -28,6 +28,7 @@ public sealed class ApiControllerBaseTests
     [InlineData(ErrorType.Unauthorized, 401)]
     [InlineData(ErrorType.NotFound, 404)]
     [InlineData(ErrorType.Conflict, 409)]
+    [InlineData(ErrorType.Unavailable, 503)]
     public void Problem_maps_error_type_to_status(ErrorType type, int status)
     {
         var error = new Error("some.code", "Some message.", type);
