@@ -17,6 +17,7 @@ public static class JwtBearerSetup
             ValidateAudience = true,
             ValidAudience = jwt.Audience,
             ValidateIssuerSigningKey = true,
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30),

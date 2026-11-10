@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -57,10 +58,24 @@ public static class ApiDefaultsExtensions
         services.AddProblemDetails();
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
-        var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
-        jwt.EnsureValid();
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options => JwtBearerSetup.Configure(options, jwt));
+        services.AddOptions<JwtOptions>()
+            .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+            .Validate(o =>
+            {
+                try
+                {
+                    o.EnsureValid();
+                    return true;
+                }
+                catch (InvalidOperationException)
+                {
+                    return false;
+                }
+            }, "Jwt:SigningKey must be at least 32 bytes.")
+            .ValidateOnStart();
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Configure<IOptions<JwtOptions>>((bearer, jwt) => JwtBearerSetup.Configure(bearer, jwt.Value));
         services.AddAuthorization();
 
         var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -84,8 +99,8 @@ public static class ApiDefaultsExtensions
 
     public static WebApplication UseTaskManagerApiDefaults(this WebApplication app)
     {
-        app.UseExceptionHandler();
         app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseExceptionHandler();
         app.UseSerilogRequestLogging();
         app.UseCors(CorsPolicyName);
         app.UseAuthentication();

@@ -14,6 +14,12 @@ public sealed class CorrelationIdMiddleware(RequestDelegate next)
         var correlationId = IsAcceptable(incoming) ? incoming : Guid.NewGuid().ToString("N");
 
         context.Response.Headers[HeaderName] = correlationId;
+        // Re-apply on start: the exception handler clears response headers before writing a 500.
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers[HeaderName] = correlationId;
+            return Task.CompletedTask;
+        });
 
         using (LogContext.PushProperty("CorrelationId", correlationId))
         {
