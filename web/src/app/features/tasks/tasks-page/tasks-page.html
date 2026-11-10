@@ -14,7 +14,28 @@
     } @else if (store.loading()) {
       <p class="status" role="status">Loading tasks…</p>
     } @else {
-      <app-task-list [tasks]="store.tasks()" />
+      @if (store.tasks().length === 0) {
+        <app-empty-state message="No tasks yet — add your first one" />
+      } @else {
+        <app-task-list [tasks]="store.tasks()" />
+        @if (store.loadingMore()) {
+          <p class="status" role="status" aria-live="polite">Loading more tasks…</p>
+        }
+        @if (store.loadMoreError()) {
+          <p class="alert" role="alert">Couldn't load more tasks.</p>
+        }
+        @if (store.hasMore()) {
+          <button
+            mat-stroked-button
+            type="button"
+            class="load-more"
+            [disabled]="store.loadingMore()"
+            (click)="store.loadMore()"
+          >
+            {{ store.loadingMore() ? 'Loading…' : 'Load more' }}
+          </button>
+        }
+      }
     }
   </section>
 </div>

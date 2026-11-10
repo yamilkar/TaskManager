@@ -21,9 +21,9 @@ describe('TaskList', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('TaskList: renders empty state when no tasks', () => {
+  it('TaskList: renders nothing when given no tasks', () => {
     const el = setup([]);
-    expect(el.textContent).toContain('No tasks yet — add your first one');
+    expect(el.textContent?.trim()).toBe('');
     expect(el.querySelectorAll('li').length).toBe(0);
   });
 

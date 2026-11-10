@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AppError } from '../../../core/http/app-error';
+import { EmptyState } from '../../../shared/ui/empty-state/empty-state';
 import { CreateTaskRequest } from '../data/task.model';
 import { TasksStore } from '../data/tasks-store';
 import { TaskForm } from '../task-form/task-form';
@@ -8,7 +10,7 @@ import { TaskList } from '../task-list/task-list';
 
 @Component({
   selector: 'app-tasks-page',
-  imports: [TaskForm, TaskList],
+  imports: [MatButtonModule, EmptyState, TaskForm, TaskList],
   providers: [TasksStore],
   templateUrl: './tasks-page.html',
   styleUrl: './tasks-page.scss',

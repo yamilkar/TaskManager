@@ -98,4 +98,86 @@ describe('TasksPage', () => {
     expect(el.textContent).toContain('Title is invalid.');
     expect(el.querySelectorAll('li').length).toBe(1);
   });
+
+  const loadMoreButton = (el: HTMLElement) =>
+    Array.from(el.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
+      /Load more|Loading…/.test(b.textContent ?? ''));
+
+  it('TasksPage: shows Load more only when there are more tasks', async () => {
+    const { fixture, el } = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: 'c1' });
+    await settle(fixture);
+    expect(loadMoreButton(el)?.textContent).toContain('Load more');
+
+    TestBed.resetTestingModule();
+    const second = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: null });
+    await settle(second.fixture);
+    expect(loadMoreButton(second.el)).toBeUndefined();
+  });
+
+  it('TasksPage: clicking Load more appends the next page', async () => {
+    const { fixture, el } = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: 'c1' });
+    await settle(fixture);
+
+    loadMoreButton(el)!.click();
+    const req = ctrl.expectOne((r) => r.method === 'GET' && r.url === URL);
+    expect(req.request.params.get('cursor')).toBe('c1');
+    req.flush({ items: [mk('2', 'B')], nextCursor: null });
+    await settle(fixture);
+
+    const titles = Array.from(el.querySelectorAll('li')).map((li) => li.textContent);
+    expect(titles.length).toBe(2);
+    expect(titles[0]).toContain('A');
+    expect(titles[1]).toContain('B');
+    expect(loadMoreButton(el)).toBeUndefined();
+  });
+
+  it('TasksPage: disables Load more and shows Loading… while loading', async () => {
+    const { fixture, el } = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: 'c1' });
+    await settle(fixture);
+
+    loadMoreButton(el)!.click();
+    fixture.detectChanges();
+    const button = loadMoreButton(el)!;
+    expect(button.disabled).toBe(true);
+    expect(button.textContent).toContain('Loading…');
+    expect(el.querySelector('[role=status]')?.textContent).toContain('Loading more tasks…');
+
+    ctrl.expectOne((r) => r.method === 'GET').flush({ items: [], nextCursor: null });
+    await settle(fixture);
+    expect(el.textContent).not.toContain('Loading more tasks…');
+  });
+
+  it("TasksPage: shows \"Couldn't load more tasks.\" and keeps the list when loading more fails", async () => {
+    const { fixture, el } = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: 'c1' });
+    await settle(fixture);
+
+    loadMoreButton(el)!.click();
+    ctrl
+      .expectOne((r) => r.method === 'GET')
+      .flush({ title: 'Boom' }, { status: 500, statusText: 'Server Error' });
+    await settle(fixture);
+
+    expect(el.querySelector('[role=alert]')?.textContent).toContain("Couldn't load more tasks.");
+    expect(el.querySelectorAll('li').length).toBe(1);
+    expect(loadMoreButton(el)?.disabled).toBe(false);
+  });
+
+  it('TasksPage: shows the empty message only when the first page is empty', async () => {
+    const { fixture, el } = setup();
+    expect(el.textContent).not.toContain('No tasks yet');
+    ctrl.expectOne(URL).flush({ items: [], nextCursor: null });
+    await settle(fixture);
+    expect(el.textContent).toContain('No tasks yet — add your first one');
+
+    TestBed.resetTestingModule();
+    const second = setup();
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'A')], nextCursor: null });
+    await settle(second.fixture);
+    expect(second.el.textContent).not.toContain('No tasks yet');
+  });
 });
