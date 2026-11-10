@@ -17,7 +17,7 @@ public sealed class TaskItemMapperTests
         var task = NewTask(null, null);
         var item = TaskItemMapper.ToItem(task);
 
-        item.Keys.OrderBy(k => k).ShouldBe(new[] { "_id", "createdAt", "status", "title", "updatedAt", "userId" });
+        item.Keys.OrderBy(k => k).ShouldBe(new[] { "_id", "createdAt", "createdAtId", "status", "title", "updatedAt", "userId" });
         item["userId"].S.ShouldBe(task.UserId.ToString("D"));
         item["_id"].S.ShouldBe(task.Id.ToString("D"));
 
@@ -45,5 +45,16 @@ public sealed class TaskItemMapperTests
         var bare = TaskItemMapper.FromItem(TaskItemMapper.ToItem(NewTask(null, null)));
         bare.Description.ShouldBeNull();
         bare.DueDate.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ToItem_anyTask_writesCreatedAtIdAsUtcRoundTripAndId()
+    {
+        var id = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
+        var created = new DateTimeOffset(2026, 11, 10, 9, 30, 0, TimeSpan.FromHours(2));
+        var task = TaskItem.Rehydrate(id, Guid.NewGuid(), "t", null, TaskItemStatus.ToDo, null, created, created);
+
+        TaskItemMapper.ToItem(task)["createdAtId"].S
+            .ShouldBe("2026-11-10T07:30:00.0000000+00:00#aaaaaaaa-0000-0000-0000-000000000001");
     }
 }
