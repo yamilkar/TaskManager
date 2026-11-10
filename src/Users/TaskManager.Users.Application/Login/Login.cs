@@ -36,7 +36,10 @@ public sealed class LoginHandler(
         // A malformed email is reported as invalid credentials so callers cannot tell which part was wrong.
         var user = email.IsSuccess ? await users.GetByEmailAsync(email.Value, ct) : null;
 
-        // Always verify (against a dummy hash when the user is unknown) to equalize timing.
+        // For passwords within the length limit, always verify (against a dummy hash when the user is
+        // unknown) so timing does not reveal which emails exist. Over-length passwords were rejected
+        // above without hashing: that path is faster, but it is taken for every email alike, so it
+        // reveals nothing about which accounts exist.
         var verified = hasher.Verify(user?.PasswordHash, command.Password);
         if (user is null || !verified)
         {

@@ -10,6 +10,7 @@ namespace TaskManager.Users.Infrastructure.Persistence;
 public sealed class DynamoDbUserRepository(IAmazonDynamoDB db, IOptions<DynamoDbOptions> options) : IUserRepository
 {
     private const int MaxAttempts = 3;
+    private const int EmailGuardIndex = 1;
     private const string NotExists = "attribute_not_exists(pk)";
 
     private string Table => options.Value.TableName;
@@ -36,7 +37,9 @@ public sealed class DynamoDbUserRepository(IAmazonDynamoDB db, IOptions<DynamoDb
             {
                 var codes = ex.CancellationReasons?.Select(r => r.Code).ToList() ?? [];
 
-                if (codes.Contains("ConditionalCheckFailed"))
+                // Reasons are positional. Only a failed email guard (index 1) means the email is taken;
+                // a failed user item put (index 0) is unexpected and must surface.
+                if (codes.Count > EmailGuardIndex && codes[EmailGuardIndex] == "ConditionalCheckFailed")
                 {
                     return AddUserResult.EmailTaken;
                 }
