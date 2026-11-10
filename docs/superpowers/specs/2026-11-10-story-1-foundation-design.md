@@ -157,7 +157,7 @@ Partition key `userId` (String), sort key `_id` (String). Attributes: `_id`, `us
 | `title` | required, trimmed, 1–200 chars |
 | `description` | optional, ≤ 2000 chars (trimmed; empty → null) |
 | `status` | `ToDo` \| `InProgress` \| `Done`; default `ToDo`; stored as a string |
-| `due_date` | optional, date-only `yyyy-MM-dd`; must not be in the past at creation (compared with `IClock` UTC date) |
+| `due_date` | optional, date-only `yyyy-MM-dd`; must not be before today in the user's time zone at creation; server rule is `dueDate >= utcToday - 1 day` using the `IClock` UTC date (see D9); the client enforces local today |
 | `createdAt` / `updatedAt` | ISO-8601 UTC strings from `IClock`; equal at creation |
 | `full_name` | required, trimmed, 1–100 chars |
 | `email` | required, valid format, ≤ 254 chars, normalized |
@@ -355,7 +355,18 @@ Branch `feature/story-1-sign-in-add-task`; PR into `main` that closes #15; Conve
 | D6 | Keep `GET /users/me` | Required authorized endpoint on the Users API; used for session validation |
 | D7 | No symbolic links; enforced by CI | Human security requirement |
 | D8 | `rules.md` at `.claude/rules/rules.md` | Auto-loaded by Claude Code for all collaborators; single real file |
+| D9 | A due date is valid if it is not before today in the user's time zone; server accepts `dueDate >= utcToday - 1 day`, client validates against local today | The server does not know the user's time zone. Comparing with the UTC date alone rejected valid local-today dates for users ahead of UTC (their local today can be the UTC tomorrow or, near midnight, differ by a day). One day of slack covers every UTC offset (UTC-12 to UTC+14) at the cost of accepting, for users behind UTC, a date that is already past by at most one day; the client enforces the strict local rule. |
 
 ## 10. Out of scope for sub-project 1
 
 Task update and delete (sub-project 2); AWS IaC, deployment, and CD (sub-project 3); refresh tokens; email verification; password reset; E2E test suite; pagination parameters on the list endpoint.
+
+## 11. Carry-forward to sub-project 3 (AWS deployment)
+
+- **Login rate limiter** is in-memory and per instance: the effective limit is multiplied by the number of instances; behind CloudFront the remote address becomes the edge IP; requests with a null IP share one bucket. Use API Gateway throttling or a WAF rate-based rule, or a trusted forwarded header.
+- **EMF metric lines** written to stdout must be pure JSON: set `AWS_LAMBDA_HANDLER_LOG_FORMAT=Unformatted` or the JSON log format, and verify that metric extraction works.
+- **Hosted-service seeding and table bootstrap** runs on every cold start: seed once at deploy time and keep `CreateTablesIfMissing=false`.
+- **JWT signing key** must come from Secrets Manager (injected as environment variable or configuration).
+- **`restoreSession`** should only clear the session on 401/404, to avoid logging users out on cold-start 5xx responses.
+- **Register endpoint** has no rate limit (cost and spam exposure on Lambda).
+- **`config.json`** is fetched from the root and ignores the base href.

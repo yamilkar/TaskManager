@@ -26,7 +26,7 @@
   - full_name 1–100 (trimmed); email ≤ 254, valid format, trim + lower-invariant
   - password 8–128 with at least one letter and one digit
   - status `ToDo|InProgress|Done` (default `ToDo`)
-  - due_date `yyyy-MM-dd`, not before today (UTC) at creation
+  - due_date `yyyy-MM-dd`, not before today in the user's time zone at creation (server: `dueDate >= utcToday - 1 day`; client: local today; see spec D9)
 - **JWT:** HS256; issuer `taskmanager-users`; audience `taskmanager-api`; lifetime 60 min; claims `sub`, `email`, `name`; clock skew 30 s. The signing key comes from `Jwt:SigningKey` and must be ≥ 32 bytes or the app fails at startup.
 - **Login:** a wrong email and a wrong password both return `401` with detail `Invalid email or password.`. Login is rate-limited to 5 requests per minute per IP, returning `429`.
 - **Demo account:** `demo@taskmanager.dev` / `Demo123!`, full name `Demo User`, fixed id `11111111-1111-1111-1111-111111111111`.
