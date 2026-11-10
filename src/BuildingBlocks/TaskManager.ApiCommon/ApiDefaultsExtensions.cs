@@ -1,0 +1,106 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Amazon.Lambda.AspNetCoreServer.Hosting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Scalar.AspNetCore;
+using Serilog;
+using Serilog.Formatting.Compact;
+using TaskManager.SharedKernel;
+using TaskManager.SharedKernel.Security;
+
+namespace TaskManager.ApiCommon;
+
+public static class ApiDefaultsExtensions
+{
+    public const string CorsPolicyName = "web";
+    public const string ReadyTag = "ready";
+
+    public static WebApplicationBuilder AddTaskManagerApiDefaults(this WebApplicationBuilder builder)
+    {
+        var services = builder.Services;
+
+        builder.Host.UseSerilog((context, _, logger) => logger
+            .ReadFrom.Configuration(context.Configuration)
+            .Enrich.FromLogContext()
+            .WriteTo.Console(new RenderedCompactJsonFormatter()));
+
+        services.AddControllers()
+            .AddJsonOptions(o =>
+            {
+                o.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            })
+            .ConfigureApiBehaviorOptions(o =>
+            {
+                o.InvalidModelStateResponseFactory = context =>
+                {
+                    var details = new ValidationProblemDetails(context.ModelState)
+                    {
+                        Status = StatusCodes.Status400BadRequest,
+                        Title = "One or more validation errors occurred.",
+                    };
+                    details.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+                    return new BadRequestObjectResult(details)
+                    {
+                        ContentTypes = { "application/problem+json" },
+                    };
+                };
+            });
+
+        services.AddProblemDetails();
+        services.AddExceptionHandler<GlobalExceptionHandler>();
+
+        var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+        jwt.EnsureValid();
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options => JwtBearerSetup.Configure(options, jwt));
+        services.AddAuthorization();
+
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        services.AddCors(o => o.AddPolicy(CorsPolicyName, policy =>
+        {
+            if (origins.Length > 0)
+            {
+                policy.WithOrigins(origins);
+            }
+
+            policy.AllowAnyHeader().AllowAnyMethod();
+        }));
+
+        services.AddOpenApi();
+        services.AddHealthChecks();
+        services.AddSingleton<IAppMetrics, EmfAppMetrics>();
+        services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+
+        return builder;
+    }
+
+    public static WebApplication UseTaskManagerApiDefaults(this WebApplication app)
+    {
+        app.UseExceptionHandler();
+        app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseSerilogRequestLogging();
+        app.UseCors(CorsPolicyName);
+        app.UseAuthentication();
+        app.UseAuthorization();
+
+        app.MapControllers();
+        app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains(ReadyTag) });
+
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapOpenApi();
+            app.MapScalarApiReference();
+        }
+
+        return app;
+    }
+}
