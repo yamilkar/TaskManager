@@ -1,5 +1,6 @@
 using System.Net;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using TaskManager.ApiCommon;
 using TaskManager.Infrastructure.DynamoDb;
@@ -17,6 +18,20 @@ var loginPermitLimit = builder.Configuration.GetValue("RateLimiting:LoginPermitL
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, ct) =>
+    {
+        var response = context.HttpContext.Response;
+        response.StatusCode = StatusCodes.Status429TooManyRequests;
+        response.Headers.RetryAfter = "60";
+        var details = new ProblemDetails
+        {
+            Status = StatusCodes.Status429TooManyRequests,
+            Title = "Too many requests",
+            Detail = "Too many sign-in attempts. Please wait a minute and try again.",
+        };
+        details.Extensions["code"] = "auth.rate_limited";
+        await response.WriteAsJsonAsync(details, options: null, contentType: "application/problem+json", ct);
+    };
     options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions

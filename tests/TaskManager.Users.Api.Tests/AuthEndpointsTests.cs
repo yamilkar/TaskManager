@@ -158,5 +158,12 @@ public sealed class AuthEndpointsTests
         var limited = await client.PostAsJsonAsync("/api/v1/auth/login", new { email = "ana@x.com", password = "x" });
 
         limited.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        limited.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
+        limited.Headers.RetryAfter!.Delta.ShouldBe(TimeSpan.FromSeconds(60));
+        var body = await limited.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        body.GetProperty("status").GetInt32().ShouldBe(429);
+        body.GetProperty("title").GetString().ShouldBe("Too many requests");
+        body.GetProperty("detail").GetString().ShouldBe("Too many sign-in attempts. Please wait a minute and try again.");
+        body.GetProperty("code").GetString().ShouldBe("auth.rate_limited");
     }
 }
