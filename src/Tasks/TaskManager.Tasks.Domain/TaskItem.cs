@@ -41,7 +41,7 @@ public sealed class TaskItem
         Guid userId,
         string? title,
         string? description,
-        TaskItemStatus status,
+        string? status,
         DateOnly? dueDate,
         DateTimeOffset now)
     {
@@ -63,6 +63,11 @@ public sealed class TaskItem
             errors["description"] = ["Description must be at most 2000 characters."];
         }
 
+        if (!TaskItemStatuses.TryParse(status, out var parsedStatus))
+        {
+            errors["status"] = [TaskItemStatuses.InvalidMessage];
+        }
+
         // Spec D9: valid if not before today in the user's time zone; UTC today minus one day covers every UTC offset.
         if (dueDate is { } due && due < DateOnly.FromDateTime(now.UtcDateTime).AddDays(-1))
         {
@@ -74,7 +79,7 @@ public sealed class TaskItem
             return Error.Validation("validation_failed", "One or more validation errors occurred.", errors);
         }
 
-        return new TaskItem(id, userId, trimmedTitle!, trimmedDescription, status, dueDate, now, now);
+        return new TaskItem(id, userId, trimmedTitle!, trimmedDescription, parsedStatus, dueDate, now, now);
     }
 
     public static TaskItem Rehydrate(

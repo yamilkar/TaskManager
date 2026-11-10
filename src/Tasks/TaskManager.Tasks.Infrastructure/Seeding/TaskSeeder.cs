@@ -30,7 +30,7 @@ public sealed class TaskSeeder(ITaskRepository repository, IClock clock, IOption
 
         foreach (var seed in seeds)
         {
-            var task = TaskItem.Create(Guid.NewGuid(), userId, seed.Title, seed.Description, seed.Status, seed.Due, now);
+            var task = TaskItem.Create(Guid.NewGuid(), userId, seed.Title, seed.Description, seed.Status.ToString(), seed.Due, now);
             if (task.IsFailure)
             {
                 throw new InvalidOperationException($"Demo task '{seed.Title}' is invalid.");
