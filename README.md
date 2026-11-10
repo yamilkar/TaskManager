@@ -40,7 +40,7 @@ Key design points (full detail in `docs/superpowers/specs/2026-11-10-story-1-fou
 
 - **Users table** (`TaskManager-Users`, pk `pk`) holds `USER#<guid>` items and `EMAIL#<normalized email>` guard items. Registration writes both in one `TransactWriteItems`, which makes email uniqueness safe under concurrency (a GSI cannot enforce uniqueness). Login uses two strongly consistent `GetItem` calls.
 - **Tasks table** (`TaskManager-Tasks`, pk `userId`, sk `_id`) means ownership is enforced by the key. Another user's task returns `404`.
-- **Auth**: JWT HS256, 60 minutes, issuer `taskmanager-users`, audience `taskmanager-api`. Wrong email and wrong password give the same `401`. Login is limited to 5 requests per minute per IP (`429`).
+- **Auth**: JWT HS256, 60 minutes, issuer `taskmanager-users`, audience `taskmanager-api`. Wrong email and wrong password give the same `401`. Login and register are each limited to 5 requests per minute per IP, in separate buckets (`429`).
 - **Observability**: Serilog JSON logs with `X-Correlation-Id` (CloudWatch Logs when deployed) and CloudWatch Embedded Metric Format metrics. Passwords, hashes and tokens are never logged.
 
 ## Prerequisites
@@ -118,7 +118,7 @@ Set through `appsettings*.json`, user-secrets or environment variables (`Section
 | `Seed` | `Enabled` | `false`; `true` in Development. Seeding is idempotent |
 | | `DemoUserId`, `DemoEmail`, `DemoPassword`, `DemoFullName` | fixed demo user (`11111111-1111-1111-1111-111111111111`) |
 | `Cors` | `AllowedOrigins` | `["http://localhost:4200"]` |
-| `RateLimiting` | `LoginPermitLimit` | `5` per minute per IP (Users API only) |
+| `RateLimiting` | `LoginPermitLimit`, `RegisterPermitLimit` | `5` per minute per IP each (Users API only) |
 
 The client reads `web/public/config.json` at startup, so one build runs in any environment:
 
@@ -132,7 +132,7 @@ Interactive docs (Scalar, Development only): `http://localhost:5080/scalar/v1` a
 
 | API | Method and route | Auth | Notes |
 |---|---|---|---|
-| Users | `POST /api/v1/auth/register` | anonymous | `201`, `400`, `409` (email taken) |
+| Users | `POST /api/v1/auth/register` | anonymous | `201`, `400`, `409` (email taken), `429` |
 | Users | `POST /api/v1/auth/login` | anonymous | `200` with `accessToken`, `400`, `401`, `429` |
 | Users | `GET /api/v1/users/me` | JWT | current user; the client also uses it to validate a stored session |
 | Tasks | `POST /api/v1/tasks` | JWT | `201`, `400`, `401` |
@@ -186,4 +186,5 @@ docs/superpowers/     design spec and implementation plan
 - **No end-to-end browser test suite** (unit and integration tests only).
 - **Browser console and wrong passwords**: a failed login returns `401` by design, and the browser itself logs "Failed to load resource: 401" for it. The app code emits no warnings or errors; the browser's own network log line cannot be suppressed without breaking the API contract.
 - No pagination parameters on the list endpoint; no password reset.
+- **Rate limits are per instance and per IP**: behind a proxy such as CloudFront, forwarded headers must be configured first (spec section 11).
 - **Deployment pending**: AWS hosting and CD are sub-project 3. Task update and delete are sub-project 2.

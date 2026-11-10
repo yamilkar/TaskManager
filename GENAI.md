@@ -96,6 +96,7 @@ Human-driven, during design:
 - During design, replaced a mediator-style handler design with **Controller → Service → Repository** and DTOs (less ceremony, still testable).
 - During PR review, the human changed direction to **CQRS-style use cases**: one command or query handler per use case (`ICommandHandler`/`IQueryHandler`), injected directly into controllers, still with **no mediator**. Each use case now has one class with one reason to change, and architecture tests enforce the rule.
 - Also during PR review, the human asked to **cut boilerplate**: removed the `AssemblyMarker` classes (architecture tests load assemblies through real types), the Angular CLI scaffolding (`web/README.md`, `web/.vscode/`), merged `web/.gitignore` and `web/.editorconfig` into the root files, moved the Prettier config into `package.json`, and dropped `appsettings.json` keys that only repeated code defaults. `coverlet.runsettings` was kept: without it, generated regex code counts toward coverage.
+- The AI PR review's comments were then addressed: request DTOs in the Users API (no binding of Application commands), a rate limit on register, a stricter status parser, the D9 comment reference, and spec section 11 notes on forwarded headers and the unbounded task list. An architecture test now checks that every request body is an Api-layer DTO.
 - **Email verification scoped out** because of the Amazon SES sandbox, and documented as a limitation.
 - **`/users/me` kept** as the Users API's authorized endpoint and for validating a session on startup.
 - Asked for an explanation of the **email-guard transaction versus a GSI**; a GSI cannot enforce uniqueness and is eventually consistent, so the guard item stays.
@@ -128,7 +129,7 @@ The five review-focus items, and where each is tested:
 Authentication and validation, in short:
 
 - JWT HS256 with a signing key of at least 32 bytes (startup fails otherwise), issuer and audience checks, and a 30 second clock skew.
-- Passwords are hashed with PBKDF2 and never logged. Unknown email and wrong password return an identical `401`, with a dummy hash check to equalize timing. Login is rate-limited (5 per minute per IP).
+- Passwords are hashed with PBKDF2 and never logged. Unknown email and wrong password return an identical `401`, with a dummy hash check to equalize timing. Login and register are rate-limited (5 per minute per IP each, separate buckets).
 - Unique email is guaranteed by the guard item in a single transaction, including under concurrent registration.
 - Validation exists on both sides: domain invariants and Application validators on the server, and typed form validators that mirror them in Angular, with server field errors mapped onto the form controls.
 - The client sends the bearer token only to the two configured API origins.

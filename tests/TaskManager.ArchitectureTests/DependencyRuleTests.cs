@@ -47,6 +47,25 @@ public class DependencyRuleTests
     [Theory]
     [InlineData("Users")]
     [InlineData("Tasks")]
+    public void Api_request_bodies_are_api_dtos_not_application_commands(string ctx)
+    {
+        var api = Load($"TaskManager.{ctx}.Api");
+        var bodyTypes = api.GetTypes()
+            .Where(t => typeof(Microsoft.AspNetCore.Mvc.ControllerBase).IsAssignableFrom(t))
+            .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            .SelectMany(m => m.GetParameters())
+            .Where(p => p.GetCustomAttribute<Microsoft.AspNetCore.Mvc.FromBodyAttribute>() is not null)
+            .Select(p => p.ParameterType)
+            .ToList();
+
+        bodyTypes.ShouldNotBeEmpty();
+        bodyTypes.Where(t => t.Assembly != api).Select(t => t.FullName)
+            .ShouldBeEmpty("controllers bind an Api request DTO and build the command themselves");
+    }
+
+    [Theory]
+    [InlineData("Users")]
+    [InlineData("Tasks")]
     public void Api_controllers_depend_on_handler_interfaces_not_implementations(string ctx) =>
         Types.InAssembly(Load($"TaskManager.{ctx}.Api")).That().HaveNameEndingWith("Controller").ShouldNot()
             .HaveDependencyOnAny(Load($"TaskManager.{ctx}.Application").GetTypes().Where(IsHandler).Select(t => t.FullName!).ToArray())

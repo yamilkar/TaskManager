@@ -34,6 +34,74 @@ public sealed class AuthEndpointsTests
     }
 
     [Fact]
+    public async Task Register_maps_request_body_to_command()
+    {
+        using var factory = new UsersApiFactory();
+        factory.Register.HandleAsync(Arg.Any<RegisterUserCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<UserResponse>.Success(Ana));
+
+        await factory.CreateClient().PostAsJsonAsync("/api/v1/auth/register",
+            new { fullName = "Ana", email = "ana@x.com", password = "Passw0rd1" });
+
+        await factory.Register.Received(1).HandleAsync(
+            new RegisterUserCommand("Ana", "ana@x.com", "Passw0rd1"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Login_maps_request_body_to_command()
+    {
+        using var factory = new UsersApiFactory();
+        factory.Login.HandleAsync(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<AuthResponse>.Failure(UserErrors.InvalidCredentials));
+
+        await factory.CreateClient().PostAsJsonAsync("/api/v1/auth/login", new { email = "ana@x.com", password = "pw" });
+
+        await factory.Login.Received(1).HandleAsync(new LoginCommand("ana@x.com", "pw"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Register_sixth_request_within_a_minute_returns_429()
+    {
+        using var factory = new UsersApiFactory();
+        factory.Register.HandleAsync(Arg.Any<RegisterUserCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<UserResponse>.Failure(UserErrors.EmailAlreadyRegistered));
+        var client = factory.CreateClient();
+        var request = new { fullName = "Ana", email = "ana@x.com", password = "Passw0rd1" };
+
+        for (var i = 0; i < 5; i++)
+        {
+            (await client.PostAsJsonAsync("/api/v1/auth/register", request)).StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        }
+
+        var limited = await client.PostAsJsonAsync("/api/v1/auth/register", request);
+
+        limited.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        var body = await limited.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("code").GetString().ShouldBe("auth.rate_limited");
+        await factory.Register.Received(5).HandleAsync(Arg.Any<RegisterUserCommand>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Register_requests_do_not_consume_login_permits()
+    {
+        using var factory = new UsersApiFactory();
+        factory.Register.HandleAsync(Arg.Any<RegisterUserCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<UserResponse>.Failure(UserErrors.EmailAlreadyRegistered));
+        factory.Login.HandleAsync(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<AuthResponse>.Failure(UserErrors.InvalidCredentials));
+        var client = factory.CreateClient();
+
+        for (var i = 0; i < 5; i++)
+        {
+            await client.PostAsJsonAsync("/api/v1/auth/register", new { fullName = "Ana", email = "ana@x.com", password = "Passw0rd1" });
+        }
+
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email = "ana@x.com", password = "x" });
+
+        login.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task Register_returns_409_problem_with_code_when_email_taken()
     {
         using var factory = new UsersApiFactory();

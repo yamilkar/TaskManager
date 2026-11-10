@@ -106,11 +106,11 @@ TaskManager/
 
 - **Use cases** are split into **commands** (change state: `RegisterUserCommand`, `LoginCommand`, `CreateTaskCommand`) and **queries** (read only: `GetCurrentUserQuery`, `ListTasksQuery`, `GetTaskQuery`). Each is a small record with one **handler** that implements `ICommandHandler<TCommand, TResponse>` or `IQueryHandler<TQuery, TResponse>` from SharedKernel and returns `Result<T>`.
 - A use case lives in one folder of the Application project: the command or query record and its handler in one file, plus a hand-written validator when it has one.
-- **Controllers** are thin. They bind the body, take `userId` from the JWT `sub` claim, build the command or query, inject the handler interface per action with `[FromServices]`, and map `Result<T>` to an HTTP response. When the body alone is the command (register, login) it is bound directly; when the command needs the caller (create task) the body is a separate request DTO in the Api project.
+- **Controllers** are thin. They bind the body, take `userId` from the JWT `sub` claim, build the command or query, inject the handler interface per action with `[FromServices]`, and map `Result<T>` to an HTTP response. Request bodies are always Api-layer DTOs (`RegisterRequest`, `LoginRequest`, `CreateTaskRequest`), so the public wire contract never binds to an Application command.
 - **Handlers** hold the business rules and validation, orchestrate domain entities and ports, and return **response DTOs**. Domain entities never leave the Application layer.
 - **Repositories** are interfaces defined in Application and implemented in Infrastructure. Commands and queries share the same repository and table; there is no separate read model (that would be YAGNI at this scope).
 - **No mediator or dispatcher** (no MediatR, no hand-rolled `ISender`): the controller depends on the handler interface directly, so the call path stays explicit and easy to review (section 9, D10).
-- Architecture tests enforce it: every `*Handler` in Application implements one of the two interfaces and is sealed, no `*Service` classes exist in Application, and controllers do not reference concrete handlers.
+- Architecture tests enforce it: every `*Handler` in Application implements one of the two interfaces and is sealed, no `*Service` classes exist in Application, controllers do not reference concrete handlers, and every `[FromBody]` type is declared in the Api project.
 
 ### 3.3 Dependency rule
 
@@ -366,10 +366,11 @@ Task update and delete (sub-project 2); AWS IaC, deployment, and CD (sub-project
 
 ## 11. Carry-forward to sub-project 3 (AWS deployment)
 
-- **Login rate limiter** is in-memory and per instance: the effective limit is multiplied by the number of instances; behind CloudFront the remote address becomes the edge IP; requests with a null IP share one bucket. Use API Gateway throttling or a WAF rate-based rule, or a trusted forwarded header.
+- **Login and register rate limiters** are in-memory and per instance, so the effective limit is multiplied by the number of instances. They partition on `RemoteIpAddress`, and no `ForwardedHeaders` middleware is configured on purpose: trusting `X-Forwarded-For` without a known proxy list lets clients spoof their IP. Directly behind API Gateway, the Lambda ASP.NET Core adapter sets `RemoteIpAddress` from the request context's source IP, so the partition is the real client. Behind CloudFront or an ALB the remote address becomes the proxy's IP, and requests with a null IP share one `unknown` bucket; then configure `UseForwardedHeaders` with the known proxy ranges, or move the limit to API Gateway throttling or a WAF rate-based rule.
 - **EMF metric lines** written to stdout must be pure JSON: set `AWS_LAMBDA_HANDLER_LOG_FORMAT=Unformatted` or the JSON log format, and verify that metric extraction works.
 - **Hosted-service seeding and table bootstrap** runs on every cold start: seed once at deploy time and keep `CreateTablesIfMissing=false`.
 - **JWT signing key** must come from Secrets Manager (injected as environment variable or configuration).
 - **`restoreSession`** should only clear the session on 401/404, to avoid logging users out on cold-start 5xx responses.
-- **Register endpoint** has no rate limit (cost and spam exposure on Lambda).
+- **Register endpoint** is now limited (5 per minute per IP, separate bucket from login). It still runs the PBKDF2 hash before the duplicate-email check, and it returns `409` for a taken email, which reveals that the email is registered. Revisit both if abuse shows up (an edge rate rule; a generic "check your email" response once email verification exists).
+- **Task list is unbounded**: `GET /api/v1/tasks` reads every page of the caller's tasks and sorts them in memory, and there is no per-user task cap. Acceptable under YAGNI for Story 1; add pagination (DynamoDB `ExclusiveStartKey`) and a sort key or GSI on `createdAt` when a story needs it.
 - **`config.json`** is fetched from the root and ignores the base href.
