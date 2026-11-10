@@ -24,9 +24,7 @@ public sealed class User
     public static Result<User> Create(Guid id, string? fullName, Email email, string passwordHash, DateTimeOffset createdAt)
     {
         var trimmed = fullName?.Trim();
-        string? problem = string.IsNullOrEmpty(trimmed)
-            ? "Full name is required."
-            : trimmed.Length > FullNameMaxLength ? "Full name must be at most 100 characters." : null;
+        var problem = ValidateFullName(fullName);
 
         if (problem is not null)
         {
@@ -37,6 +35,14 @@ public sealed class User
         }
 
         return new User(id, trimmed!, email, passwordHash, createdAt);
+    }
+
+    public static string? ValidateFullName(string? fullName)
+    {
+        var trimmed = fullName?.Trim();
+        return string.IsNullOrEmpty(trimmed)
+            ? "Full name is required."
+            : trimmed.Length > FullNameMaxLength ? "Full name must be at most 100 characters." : null;
     }
 
     public static User Rehydrate(Guid id, string fullName, Email email, string passwordHash, DateTimeOffset createdAt)

@@ -6,6 +6,7 @@
     <!-- Runtime -->
     <PackageVersion Include="AWSSDK.DynamoDBv2" Version="4.0.110.2" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.Abstractions" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.14" />
     <!-- Testing -->
     <PackageVersion Include="xunit" Version="2.9.3" />
