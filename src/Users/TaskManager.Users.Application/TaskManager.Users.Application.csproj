@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../TaskManager.Users.Domain/TaskManager.Users.Domain.csproj" />
+    <ProjectReference Include="../../BuildingBlocks/TaskManager.SharedKernel/TaskManager.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Users/TaskManager.Users.Api/TaskManager.Users.Api.csproj" />
+    <ProjectReference Include="../TaskManager.Testing/TaskManager.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="../TaskManager.Tasks.Application/TaskManager.Tasks.Application.csproj" />
+    <ProjectReference Include="../TaskManager.Tasks.Infrastructure/TaskManager.Tasks.Infrastructure.csproj" />
+    <ProjectReference Include="../../BuildingBlocks/TaskManager.ApiCommon/TaskManager.ApiCommon.csproj" />
+  </ItemGroup>
+
+</Project>

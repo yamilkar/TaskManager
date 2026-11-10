@@ -1,0 +1,18 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+TestResults/
+coverage/
+*.log
+# Node / Angular
+node_modules/
+web/dist/
+.angular/
+npm-debug.log*
+# Misc
+.env
+*.DotSettings.user

@@ -1,0 +1,34 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/TaskManager.ApiCommon/TaskManager.ApiCommon.csproj" />
+    <Project Path="src/BuildingBlocks/TaskManager.Infrastructure.DynamoDb/TaskManager.Infrastructure.DynamoDb.csproj" />
+    <Project Path="src/BuildingBlocks/TaskManager.SharedKernel/TaskManager.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/src/Tasks/">
+    <Project Path="src/Tasks/TaskManager.Tasks.Api/TaskManager.Tasks.Api.csproj" />
+    <Project Path="src/Tasks/TaskManager.Tasks.Application/TaskManager.Tasks.Application.csproj" />
+    <Project Path="src/Tasks/TaskManager.Tasks.Domain/TaskManager.Tasks.Domain.csproj" />
+    <Project Path="src/Tasks/TaskManager.Tasks.Infrastructure/TaskManager.Tasks.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Users/">
+    <Project Path="src/Users/TaskManager.Users.Api/TaskManager.Users.Api.csproj" />
+    <Project Path="src/Users/TaskManager.Users.Application/TaskManager.Users.Application.csproj" />
+    <Project Path="src/Users/TaskManager.Users.Domain/TaskManager.Users.Domain.csproj" />
+    <Project Path="src/Users/TaskManager.Users.Infrastructure/TaskManager.Users.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TaskManager.ApiCommon.Tests/TaskManager.ApiCommon.Tests.csproj" />
+    <Project Path="tests/TaskManager.ArchitectureTests/TaskManager.ArchitectureTests.csproj" />
+    <Project Path="tests/TaskManager.SharedKernel.Tests/TaskManager.SharedKernel.Tests.csproj" />
+    <Project Path="tests/TaskManager.Tasks.Api.Tests/TaskManager.Tasks.Api.Tests.csproj" />
+    <Project Path="tests/TaskManager.Tasks.Application.Tests/TaskManager.Tasks.Application.Tests.csproj" />
+    <Project Path="tests/TaskManager.Tasks.Domain.Tests/TaskManager.Tasks.Domain.Tests.csproj" />
+    <Project Path="tests/TaskManager.Tasks.Infrastructure.Tests/TaskManager.Tasks.Infrastructure.Tests.csproj" />
+    <Project Path="tests/TaskManager.Testing/TaskManager.Testing.csproj" />
+    <Project Path="tests/TaskManager.Users.Api.Tests/TaskManager.Users.Api.Tests.csproj" />
+    <Project Path="tests/TaskManager.Users.Application.Tests/TaskManager.Users.Application.Tests.csproj" />
+    <Project Path="tests/TaskManager.Users.Domain.Tests/TaskManager.Users.Domain.Tests.csproj" />
+    <Project Path="tests/TaskManager.Users.Infrastructure.Tests/TaskManager.Users.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

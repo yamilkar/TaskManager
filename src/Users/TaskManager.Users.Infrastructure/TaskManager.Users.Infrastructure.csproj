@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="../TaskManager.Users.Application/TaskManager.Users.Application.csproj" />
+    <ProjectReference Include="../../BuildingBlocks/TaskManager.Infrastructure.DynamoDb/TaskManager.Infrastructure.DynamoDb.csproj" />
+  </ItemGroup>
+
+</Project>
