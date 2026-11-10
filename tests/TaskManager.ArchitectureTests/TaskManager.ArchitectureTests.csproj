@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NetArchTest.Rules" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/BuildingBlocks/TaskManager.ApiCommon/TaskManager.ApiCommon.csproj" />
+    <ProjectReference Include="../../src/BuildingBlocks/TaskManager.Infrastructure.DynamoDb/TaskManager.Infrastructure.DynamoDb.csproj" />
+    <ProjectReference Include="../../src/BuildingBlocks/TaskManager.SharedKernel/TaskManager.SharedKernel.csproj" />
+    <ProjectReference Include="../../src/Tasks/TaskManager.Tasks.Api/TaskManager.Tasks.Api.csproj" />
+    <ProjectReference Include="../../src/Tasks/TaskManager.Tasks.Application/TaskManager.Tasks.Application.csproj" />
+    <ProjectReference Include="../../src/Tasks/TaskManager.Tasks.Domain/TaskManager.Tasks.Domain.csproj" />
+    <ProjectReference Include="../../src/Tasks/TaskManager.Tasks.Infrastructure/TaskManager.Tasks.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/Users/TaskManager.Users.Api/TaskManager.Users.Api.csproj" />
+    <ProjectReference Include="../../src/Users/TaskManager.Users.Application/TaskManager.Users.Application.csproj" />
+    <ProjectReference Include="../../src/Users/TaskManager.Users.Domain/TaskManager.Users.Domain.csproj" />
+    <ProjectReference Include="../../src/Users/TaskManager.Users.Infrastructure/TaskManager.Users.Infrastructure.csproj" />
+    <ProjectReference Include="../TaskManager.Testing/TaskManager.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

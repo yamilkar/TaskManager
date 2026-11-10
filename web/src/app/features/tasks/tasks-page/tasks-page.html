@@ -1,0 +1,20 @@
+<h1 class="heading">Tasks</h1>
+<div class="layout">
+  <app-task-form
+    [submitting]="submitting()"
+    [serverErrors]="serverErrors()"
+    (submitted)="onSubmitted($event)"
+  />
+  <section class="list" aria-label="Task list">
+    @if (formError(); as message) {
+      <p class="alert" role="alert">{{ message }}</p>
+    }
+    @if (store.error(); as error) {
+      <p class="alert" role="alert">{{ error.message }}</p>
+    } @else if (store.loading()) {
+      <p class="status" role="status">Loading tasks…</p>
+    } @else {
+      <app-task-list [tasks]="store.tasks()" />
+    }
+  </section>
+</div>

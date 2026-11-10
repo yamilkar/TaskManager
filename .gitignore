@@ -1,0 +1,31 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.DotSettings.user
+.vs/
+TestResults/
+coverage/
+coverage-raw/
+coverage-report/
+
+# Node / Angular (web/)
+node_modules/
+web/dist/
+web/out-tsc/
+.angular/
+npm-debug.log*
+yarn-error.log
+__screenshots__/
+
+# Editors and OS
+.idea/
+.vscode/
+.history/
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
+.env

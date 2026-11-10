@@ -34,7 +34,7 @@ This spec still **fixes the AWS storage and hosting choice** (section 2), becaus
 ### 1.4 Hard constraints (from the original request)
 
 - Clean Architecture, separation of concerns, independent components; TDD; SOLID, DRY, KISS, YAGNI.
-- **No Entity Framework, no Dapper, no MediatR**, and no mediator-style pattern (section 9, D1).
+- **No Entity Framework, no Dapper, no MediatR**, and no mediator or dispatcher: controllers inject the command/query handler they need directly (section 9, D10).
 - One table/container for users and one for tasks.
   - Task fields: `_id` (Guid), `userId`, `title`, `description`, `status`, `due_date`, `createdAt`, `updatedAt`.
   - User fields: `_id` (Guid), `full_name`, `email`, `passwordHash`, `createdAt`.
@@ -76,23 +76,22 @@ Approach A costs about $0 idle, stays in the free tier, and keeps hosting concer
 ```
 TaskManager/
 ├─ src/
-│  ├─ BuildingBlocks/TaskManager.SharedKernel      Result<T>, Error, ErrorType, IClock (no AWS/ASP.NET refs)
+│  ├─ BuildingBlocks/TaskManager.SharedKernel      Result<T>, Error, ErrorType, IClock, ICommandHandler, IQueryHandler (no AWS/ASP.NET refs)
 │  ├─ Users/
 │  │  ├─ TaskManager.Users.Domain          User entity, Email value object, invariants
-│  │  ├─ TaskManager.Users.Application     IUserService/UserService (RegisterAsync, LoginAsync, GetByIdAsync)
-│  │  │                                    DTOs: RegisterUserRequest, LoginRequest, UserResponse, AuthResponse
-│  │  │                                    Ports: IUserRepository, IPasswordHasher, ITokenIssuer
-│  │  │                                    Hand-written request validators
+│  │  ├─ TaskManager.Users.Application     one folder per use case: Register/ (RegisterUserCommand + handler + validator),
+│  │  │                                    Login/ (LoginCommand + handler + validator, AuthResponse), GetCurrentUser/ (query + handler)
+│  │  │                                    UserResponse; Ports: IUserRepository, IPasswordHasher, ITokenIssuer
 │  │  ├─ TaskManager.Users.Infrastructure  DynamoDbUserRepository, UserItemMapper, PBKDF2 hasher adapter,
 │  │  │                                    JwtTokenIssuer, table initializer, seeder, EMF metrics
 │  │  └─ TaskManager.Users.Api             AuthController, UsersController, health, ProblemDetails,
 │  │                                       JWT auth, rate limiting, CORS, OpenAPI, Lambda hosting
 │  └─ Tasks/
 │     ├─ TaskManager.Tasks.Domain          TaskItem entity, TaskItemStatus, invariants
-│     ├─ TaskManager.Tasks.Application     ITaskService/TaskService (CreateAsync, ListForUserAsync, GetByIdAsync)
-│     │                                    DTOs: CreateTaskRequest, TaskResponse; Port: ITaskRepository
+│     ├─ TaskManager.Tasks.Application     CreateTask/ (command + handler), ListTasks/ and GetTask/ (query + handler)
+│     │                                    TaskResponse; Port: ITaskRepository
 │     ├─ TaskManager.Tasks.Infrastructure  DynamoDbTaskRepository, TaskItemMapper, table initializer, seeder, metrics
-│     └─ TaskManager.Tasks.Api             TasksController, health, ProblemDetails, JWT validation, CORS, OpenAPI
+│     └─ TaskManager.Tasks.Api             TasksController (+ CreateTaskRequest body DTO), health, ProblemDetails, JWT validation, CORS, OpenAPI
 ├─ tests/                                  one xUnit project per src project + TaskManager.ArchitectureTests
 ├─ web/                                    Angular app
 ├─ docker-compose.yml                      DynamoDB Local (+ dynamodb-admin UI)
@@ -103,12 +102,15 @@ TaskManager/
 └─ GENAI.md
 ```
 
-### 3.2 Design pattern: Controller → Service → Repository
+### 3.2 Design pattern: Controller → command/query handler → Repository (CQRS style)
 
-- **Controllers** are thin. They bind the request DTO, take `userId` from the JWT `sub` claim, call the service, and map `Result<T>` to an HTTP response.
-- **Services** (Application layer) hold the business rules and validation, orchestrate domain entities and ports, and take and return **DTOs**. Domain entities never leave the Application layer.
-- **Repositories** are interfaces defined in Application and implemented in Infrastructure.
-- No MediatR and no handler-per-use-case classes. If a service grows too many responsibilities later, splitting it into use-case handlers can be reconsidered (section 9, D1).
+- **Use cases** are split into **commands** (change state: `RegisterUserCommand`, `LoginCommand`, `CreateTaskCommand`) and **queries** (read only: `GetCurrentUserQuery`, `ListTasksQuery`, `GetTaskQuery`). Each is a small record with one **handler** that implements `ICommandHandler<TCommand, TResponse>` or `IQueryHandler<TQuery, TResponse>` from SharedKernel and returns `Result<T>`.
+- A use case lives in one folder of the Application project: the command or query record and its handler in one file, plus a hand-written validator when it has one.
+- **Controllers** are thin. They bind the body, take `userId` from the JWT `sub` claim, build the command or query, inject the handler interface per action with `[FromServices]`, and map `Result<T>` to an HTTP response. Request bodies are always Api-layer DTOs (`RegisterRequest`, `LoginRequest`, `CreateTaskRequest`), so the public wire contract never binds to an Application command.
+- **Handlers** hold the business rules and validation, orchestrate domain entities and ports, and return **response DTOs**. Domain entities never leave the Application layer.
+- **Repositories** are interfaces defined in Application and implemented in Infrastructure. Commands and queries share the same repository and table; there is no separate read model (that would be YAGNI at this scope).
+- **No mediator or dispatcher** (no MediatR, no hand-rolled `ISender`): the controller depends on the handler interface directly, so the call path stays explicit and easy to review (section 9, D10).
+- Architecture tests enforce it: every `*Handler` in Application implements one of the two interfaces and is sealed, no `*Service` classes exist in Application, controllers do not reference concrete handlers, and every `[FromBody]` type is declared in the Api project.
 
 ### 3.3 Dependency rule
 
@@ -138,7 +140,7 @@ Partition key `pk` (String), no sort key. It holds two item kinds:
 | Email guard | `EMAIL#<normalized email>` | `userId` |
 
 - **Why the guard item:** DynamoDB enforces uniqueness only on primary keys, and a GSI cannot reserve a value. It is eventually consistent and allows a check-then-write race.
-- **Register:** one `TransactWriteItems` writes the user item and the guard item, both with `attribute_not_exists(pk)`. If the email is taken, DynamoDB cancels the whole transaction (`TransactionCanceledException` / `ConditionalCheckFailed`). The service maps that to `Error.Conflict("EmailAlreadyRegistered")`, which becomes HTTP **409**. This holds under concurrent requests, and it never leaves an orphan user or guard.
+- **Register:** one `TransactWriteItems` writes the user item and the guard item, both with `attribute_not_exists(pk)`. If the email is taken, DynamoDB cancels the whole transaction (`TransactionCanceledException` / `ConditionalCheckFailed`). The register handler maps that to `Error.Conflict("EmailAlreadyRegistered")`, which becomes HTTP **409**. This holds under concurrent requests, and it never leaves an orphan user or guard.
 - **Login:** a strongly consistent `GetItem(EMAIL#…)` returns `userId`, then `GetItem(USER#…)` returns the user. No GSI is needed.
 - **Email normalization:** trim, then lower-invariant, applied before storing or looking up.
 
@@ -157,7 +159,7 @@ Partition key `userId` (String), sort key `_id` (String). Attributes: `_id`, `us
 | `title` | required, trimmed, 1–200 chars |
 | `description` | optional, ≤ 2000 chars (trimmed; empty → null) |
 | `status` | `ToDo` \| `InProgress` \| `Done`; default `ToDo`; stored as a string |
-| `due_date` | optional, date-only `yyyy-MM-dd`; must not be in the past at creation (compared with `IClock` UTC date) |
+| `due_date` | optional, date-only `yyyy-MM-dd`; must not be before today in the user's time zone at creation; server rule is `dueDate >= utcToday - 1 day` using the `IClock` UTC date (see D9); the client enforces local today |
 | `createdAt` / `updatedAt` | ISO-8601 UTC strings from `IClock`; equal at creation |
 | `full_name` | required, trimmed, 1–100 chars |
 | `email` | required, valid format, ≤ 254 chars, normalized |
@@ -212,7 +214,7 @@ Invariants live in the domain entities (factory methods that return `Result<T>`)
 
 ### 5.4 Error handling
 
-- Services return `Result<T>` / `Result` with `Error(Code, Message, Type, FieldErrors?)`. `ErrorType` is `Validation`, `NotFound`, `Conflict`, or `Unauthorized`.
+- Handlers return `Result<T>` / `Result` with `Error(Code, Message, Type, FieldErrors?)`. `ErrorType` is `Validation`, `NotFound`, `Conflict`, or `Unauthorized`.
 - A shared `ApiControllerBase.Problem(Error)` maps these to RFC 9457 **ProblemDetails**: `400` `ValidationProblemDetails` with per-field messages, `401`, `404`, `409`.
 - Model-binding and malformed-JSON failures also return `400` ProblemDetails.
 - A global `IExceptionHandler` turns unexpected exceptions into `500` ProblemDetails with `traceId`, without the stack trace outside Development, and logs them as errors.
@@ -288,9 +290,9 @@ Every behavior starts as a failing test (red → green → refactor).
 | Project | Scope | Technique |
 |---|---|---|
 | `*.Domain.Tests` | entities, value objects, invariants | pure unit tests |
-| `*.Application.Tests` | services, validators, DTO mapping, error results, metrics calls | NSubstitute for repositories, hasher, token issuer, clock, metrics |
+| `*.Application.Tests` | command and query handlers, validators, DTO mapping, error results, metrics calls | NSubstitute for repositories, hasher, token issuer, clock, metrics |
 | `*.Infrastructure.Tests` | mappers; repositories (including the email-guard transaction and conflict path, task query by user); JWT issuer; hasher adapter; seeder idempotency | mappers as pure unit tests; repositories against DynamoDB Local via **Testcontainers** |
-| `*.Api.Tests` | routes, status codes, ProblemDetails shape, `401` without or with an invalid token, `/users/me`, rate limiting, health, `userId` taken from the token | `WebApplicationFactory` with substituted services and test-generated JWTs |
+| `*.Api.Tests` | routes, status codes, ProblemDetails shape, `401` without or with an invalid token, `/users/me`, rate limiting, health, `userId` taken from the token | `WebApplicationFactory` with substituted handler interfaces (or real handlers over a substituted repository) and test-generated JWTs |
 | `TaskManager.ArchitectureTests` | dependency rule | NetArchTest |
 | `web` | stores, interceptors, guards, login (error shown, no navigation), register, task form and list (confirmation) | Vitest + `TestBed` + `HttpTestingController` |
 
@@ -316,7 +318,7 @@ Require a PR, all CI jobs green, and at least one **human** approval; block dire
 
 - Uses `anthropics/claude-code-action` on PR open and synchronize, prompted to apply the Superpowers code-review approach and `.claude/rules/rules.md`.
 - Permissions: `contents: read`, `pull-requests: write`. It can comment, but cannot push, approve, resolve, or merge.
-- Requires an `ANTHROPIC_API_KEY` repository secret, which the repo owner adds.
+- Authenticates to Claude with a `CLAUDE_CODE_OAUTH_TOKEN` repository secret (from `claude setup-token`, billed to the owner's Claude subscription), which the repo owner adds. GitHub access uses the job's own `GITHUB_TOKEN` (no OIDC / GitHub App exchange).
 
 ### 8.4 Documentation
 
@@ -326,7 +328,7 @@ Require a PR, all CI jobs green, and at least one **human** approval; block dire
   - demo credentials, running tests, configuration reference, API overview (with Scalar link), project layout
   - **known limitations**: no email verification, no refresh tokens, `sessionStorage` token, no E2E suite
 - **`.claude/rules/rules.md`** (a real file, auto-loaded by Claude Code)
-  - architecture and dependency rule; Controller → Service → Repository; no EF, Dapper, MediatR, or handler-per-use-case
+  - architecture and dependency rule; Controller → command/query handler → Repository; no EF, Dapper, MediatR or any mediator
   - TDD; SOLID, DRY, KISS, YAGNI
   - .NET and Angular conventions; Conventional Commits
   - **no symbolic links**
@@ -347,7 +349,7 @@ Branch `feature/story-1-sign-in-add-task`; PR into `main` that closes #15; Conve
 
 | # | Decision | Reason |
 |---|---|---|
-| D1 | Controller → Service → Repository with explicit DTOs; no handler-per-use-case | Human review: a mediator-like handler pattern is unnecessary ceremony at this scope; services keep the dependency direction and are fully testable. Split into handlers later only if services grow too many responsibilities. |
+| D1 | *(Superseded by D10.)* Controller → Service → Repository with explicit DTOs; no handler-per-use-case | Human review: a mediator-like handler pattern is unnecessary ceremony at this scope; services keep the dependency direction and are fully testable. Split into handlers later only if services grow too many responsibilities. |
 | D2 | DynamoDB + Lambda + S3/CloudFront (approach A) | Lowest cost for an assessment, "modern AWS", hosting does not leak into Domain or Application |
 | D3 | Email-guard item + `TransactWriteItems` for unique email | A GSI cannot enforce uniqueness and is eventually consistent |
 | D4 | Tasks keyed by `userId` + `_id` | Ownership enforced by the key; efficient listing without a GSI |
@@ -355,7 +357,20 @@ Branch `feature/story-1-sign-in-add-task`; PR into `main` that closes #15; Conve
 | D6 | Keep `GET /users/me` | Required authorized endpoint on the Users API; used for session validation |
 | D7 | No symbolic links; enforced by CI | Human security requirement |
 | D8 | `rules.md` at `.claude/rules/rules.md` | Auto-loaded by Claude Code for all collaborators; single real file |
+| D9 | A due date is valid if it is not before today in the user's time zone; server accepts `dueDate >= utcToday - 1 day`, client validates against local today | The server does not know the user's time zone. Comparing with the UTC date alone rejected valid local-today dates for users ahead of UTC (their local today can be the UTC tomorrow or, near midnight, differ by a day). One day of slack covers every UTC offset (UTC-12 to UTC+14) at the cost of accepting, for users behind UTC, a date that is already past by at most one day; the client enforces the strict local rule. |
+| D10 | CQRS-style use cases: one command or query handler per use case, injected directly into controllers; no mediator; one shared repository and table | Human PR review: handlers separate reads from writes and give each use case one class with one reason to change, which keeps business logic small and easy to test. A mediator is still excluded because it hides the call path and adds ceremony; controllers inject `ICommandHandler`/`IQueryHandler` directly. A separate read model is not needed at this scope. |
 
 ## 10. Out of scope for sub-project 1
 
 Task update and delete (sub-project 2); AWS IaC, deployment, and CD (sub-project 3); refresh tokens; email verification; password reset; E2E test suite; pagination parameters on the list endpoint.
+
+## 11. Carry-forward to sub-project 3 (AWS deployment)
+
+- **Login and register rate limiters** are in-memory and per instance, so the effective limit is multiplied by the number of instances. They partition on `RemoteIpAddress`. Directly behind API Gateway, the Lambda ASP.NET Core adapter sets it from the request context's source IP. Behind CloudFront or an ALB, set `ForwardedHeaders:KnownProxies` or `ForwardedHeaders:KnownNetworks` to the proxy addresses: `X-Forwarded-For` is then trusted only from those peers (never from anyone else, so clients cannot spoof their IP). A request with no client IP at all fails closed with `503` (`auth.client_ip_unavailable`) and a logged warning, instead of sharing one bucket that anyone could exhaust. Consider API Gateway throttling or a WAF rate-based rule as well.
+- **EMF metric lines** written to stdout must be pure JSON: set `AWS_LAMBDA_HANDLER_LOG_FORMAT=Unformatted` or the JSON log format, and verify that metric extraction works.
+- **Hosted-service seeding and table bootstrap** runs on every cold start: keep `CreateTablesIfMissing=false`. `Seed:Enabled` fails startup outside Development, because the demo credentials are public; a deployed demo needs its own seeding step with a non-public password.
+- **JWT signing key** must come from Secrets Manager (injected as environment variable or configuration).
+- **`restoreSession`** should only clear the session on 401/404, to avoid logging users out on cold-start 5xx responses.
+- **Register endpoint** is now limited (5 per minute per IP, separate bucket from login). It still runs the PBKDF2 hash before the duplicate-email check, and it returns `409` for a taken email, which reveals that the email is registered. Revisit both if abuse shows up (an edge rate rule; a generic "check your email" response once email verification exists).
+- **Task list is unbounded**: `GET /api/v1/tasks` reads every page of the caller's tasks and sorts them in memory, and there is no per-user task cap. Acceptable under YAGNI for Story 1; add pagination (DynamoDB `ExclusiveStartKey`) and a sort key or GSI on `createdAt` when a story needs it.
+- **`config.json`** is fetched from the root and ignores the base href.

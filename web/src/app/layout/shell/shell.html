@@ -1,0 +1,9 @@
+<mat-toolbar class="toolbar">
+  <span class="brand">TaskManager</span>
+  <span class="spacer"></span>
+  <span class="user-name">{{ user()?.fullName }}</span>
+  <button matButton (click)="signOut()">Sign out</button>
+</mat-toolbar>
+<main class="content">
+  <router-outlet />
+</main>

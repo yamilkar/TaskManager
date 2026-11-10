@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  COVERAGE_THRESHOLD: 80
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -warnaserror --no-restore
+
+      - name: Test with coverage
+        run: dotnet test --no-build --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory ./coverage-raw
+
+      - name: Merge coverage reports
+        run: |
+          dotnet tool restore
+          dotnet tool run reportgenerator \
+            "-reports:coverage-raw/**/coverage.cobertura.xml" \
+            "-targetdir:coverage-report" \
+            "-reporttypes:Html;TextSummary;Cobertura" \
+            "-assemblyfilters:+TaskManager.*.Domain;+TaskManager.*.Application"
+
+      - name: Enforce line coverage threshold
+        run: |
+          # TextSummary line looks like: "Line coverage: 87.4%"
+          line=$(grep -m1 'Line coverage:' coverage-report/Summary.txt)
+          echo "$line"
+          pct=$(echo "$line" | sed -E 's/.*: *([0-9.]+)%.*/\1/')
+          if awk -v p="$pct" -v t="$COVERAGE_THRESHOLD" 'BEGIN { exit !(p + 0 < t + 0) }'; then
+            echo "::error::Line coverage ${pct}% of Domain + Application is below ${COVERAGE_THRESHOLD}%."
+            exit 1
+          fi
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report
+          if-no-files-found: ignore
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+      - run: npx ng lint --max-warnings 0
+      - run: npx ng test --watch=false
+      - run: npx ng build
+
+  repo-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject symbolic links
+        run: |
+          if [ -n "$(git ls-files -s | awk '$1 == "120000"')" ]; then
+            echo "Symbolic links are not allowed in this repository."
+            exit 1
+          fi

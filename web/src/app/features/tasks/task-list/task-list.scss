@@ -1,0 +1,33 @@
+.tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task {
+  padding: 12px 16px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font: var(--mat-sys-title-medium);
+  overflow-wrap: anywhere;
+}
+
+.description,
+.due {
+  margin: 4px 0 0;
+  color: var(--mat-sys-on-surface-variant);
+  overflow-wrap: anywhere;
+}

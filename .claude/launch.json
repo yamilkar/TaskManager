@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "users-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Users/TaskManager.Users.Api", "--launch-profile", "http"],
+      "port": 5080
+    },
+    {
+      "name": "tasks-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "src/Tasks/TaskManager.Tasks.Api", "--launch-profile", "http"],
+      "port": 5090
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "web", "run", "start", "--", "--port", "4200"],
+      "port": 4200
+    }
+  ]
+}
