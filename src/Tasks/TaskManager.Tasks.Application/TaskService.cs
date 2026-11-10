@@ -66,8 +66,9 @@ public sealed class TaskService(ITaskRepository tasks, IClock clock, IAppMetrics
             return true;
         }
 
-        // Only names are accepted: numeric strings (even in-range ones like "1") are rejected.
-        return !raw.Any(char.IsDigit) && Enum.TryParse(raw, ignoreCase: true, out status) && Enum.IsDefined(status);
+        // Only single names are accepted: numeric strings (even in-range ones like "1") and
+        // comma lists (Enum.TryParse accepts "ToDo,Done") are rejected.
+        return !raw.Any(char.IsDigit) && !raw.Contains(',') && Enum.TryParse(raw, ignoreCase: true, out status) && Enum.IsDefined(status);
     }
 
     private static TaskResponse ToResponse(TaskItem t) =>

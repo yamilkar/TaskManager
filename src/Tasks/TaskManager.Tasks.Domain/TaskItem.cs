@@ -63,7 +63,8 @@ public sealed class TaskItem
             errors["description"] = ["Description must be at most 2000 characters."];
         }
 
-        if (dueDate is { } due && due < DateOnly.FromDateTime(now.UtcDateTime))
+        // R12: valid if not before today in the user's time zone; UTC today minus one day covers every UTC offset.
+        if (dueDate is { } due && due < DateOnly.FromDateTime(now.UtcDateTime).AddDays(-1))
         {
             errors["dueDate"] = ["Due date cannot be in the past."];
         }

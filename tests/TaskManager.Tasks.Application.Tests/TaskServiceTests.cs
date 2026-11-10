@@ -41,6 +41,7 @@ public class TaskServiceTests
 
     [Theory]
     [InlineData("Blocked")]
+    [InlineData("ToDo,Done")]
     [InlineData("5")]
     [InlineData("1")]
     [InlineData("")]

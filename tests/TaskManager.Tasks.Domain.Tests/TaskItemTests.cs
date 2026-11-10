@@ -65,10 +65,19 @@ public class TaskItemTests
     }
 
     [Fact]
-    public void Create_rejects_due_date_before_today_utc()
+    public void Create_accepts_due_date_of_yesterday_utc_for_users_ahead_of_utc_offsets()
     {
         var now = new DateTimeOffset(2026, 11, 10, 0, 0, 0, TimeSpan.Zero);
         var result = TaskItem.Create(Id, UserId, "t", null, TaskItemStatus.ToDo, new DateOnly(2026, 11, 9), now);
+
+        result.IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Create_rejects_due_date_two_days_before_today_utc()
+    {
+        var now = new DateTimeOffset(2026, 11, 10, 0, 0, 0, TimeSpan.Zero);
+        var result = TaskItem.Create(Id, UserId, "t", null, TaskItemStatus.ToDo, new DateOnly(2026, 11, 8), now);
 
         result.IsFailure.ShouldBeTrue();
         result.Error!.FieldErrors!["dueDate"].ShouldContain("Due date cannot be in the past.");
