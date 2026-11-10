@@ -166,6 +166,22 @@ public sealed class TasksEndpointsTests
         await factory.Get.Received(1).HandleAsync(new GetTaskQuery(caller, taskId), Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("not-a-guid")]
+    public async Task List_with_signed_token_lacking_valid_sub_returns_401_not_500(string? subject)
+    {
+        using var factory = new TasksApiFactory();
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", TestJwt.CreateWithSubject(subject, factory.SigningKey));
+
+        var response = await client.GetAsync(Url);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        await factory.List.DidNotReceiveWithAnyArgs().HandleAsync(default!, default);
+    }
+
     [Fact]
     public async Task Token_signed_with_different_key_returns_401()
     {

@@ -27,11 +27,14 @@ public static class RateLimitPolicies
                 var response = context.HttpContext.Response;
                 response.StatusCode = StatusCodes.Status429TooManyRequests;
                 response.Headers.RetryAfter = "60";
+                var policy = context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
                 var details = new ProblemDetails
                 {
                     Status = StatusCodes.Status429TooManyRequests,
                     Title = "Too many requests",
-                    Detail = "Too many sign-in attempts. Please wait a minute and try again.",
+                    Detail = policy == Register
+                        ? "Too many registration attempts. Please wait a minute and try again."
+                        : "Too many sign-in attempts. Please wait a minute and try again.",
                 };
                 details.Extensions["code"] = "auth.rate_limited";
                 await response.WriteAsJsonAsync(details, options: null, contentType: "application/problem+json", ct);

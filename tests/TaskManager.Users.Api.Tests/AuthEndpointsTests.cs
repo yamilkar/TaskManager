@@ -78,6 +78,7 @@ public sealed class AuthEndpointsTests
         limited.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
         var body = await limited.Content.ReadFromJsonAsync<JsonElement>();
         body.GetProperty("code").GetString().ShouldBe("auth.rate_limited");
+        body.GetProperty("detail").GetString().ShouldBe("Too many registration attempts. Please wait a minute and try again.");
         await factory.Register.Received(5).HandleAsync(Arg.Any<RegisterUserCommand>(), Arg.Any<CancellationToken>());
     }
 

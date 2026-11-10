@@ -23,5 +23,20 @@ public static class JwtBearerSetup
             ClockSkew = TimeSpan.FromSeconds(30),
             NameClaimType = "name",
         };
+
+        // Every endpoint keys data on the 'sub' claim. A correctly signed token without a GUID 'sub'
+        // is a bad credential, so reject it here as 401 instead of letting CurrentUserId throw a 500.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                if (!Guid.TryParse(context.Principal?.FindFirst("sub")?.Value, out _))
+                {
+                    context.Fail("Token has no valid 'sub' claim.");
+                }
+
+                return Task.CompletedTask;
+            },
+        };
     }
 }

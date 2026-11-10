@@ -24,4 +24,17 @@ public sealed class AddUsersInfrastructureTests
         provider.GetRequiredService<ITokenIssuer>().ShouldNotBeNull();
         provider.GetRequiredService<UserSeeder>().ShouldNotBeNull();
     }
+
+    [Fact]
+    public void AddUsersInfrastructure_passwordHasher_isBuiltAtStartupNotOnFirstRequest()
+    {
+        // The hasher pre-computes its dummy hash in the constructor; registering a ready instance means
+        // that cost is paid at startup, so the first unknown-email login is not measurably slower.
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
+
+        var descriptor = new ServiceCollection().AddUsersInfrastructure(config)
+            .Single(d => d.ServiceType == typeof(IPasswordHasher));
+
+        descriptor.ImplementationInstance.ShouldBeOfType<Security.AspNetPasswordHasher>();
+    }
 }

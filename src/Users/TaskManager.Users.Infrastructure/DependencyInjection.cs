@@ -29,7 +29,7 @@ public static class DependencyInjection
 
         services.TryAddSingleton<IClock, SystemClock>();
         services.AddSingleton<IUserRepository, DynamoDbUserRepository>();
-        services.AddSingleton<IPasswordHasher, AspNetPasswordHasher>();
+        services.AddSingleton<IPasswordHasher>(new AspNetPasswordHasher());
         services.AddSingleton<ITokenIssuer, JwtTokenIssuer>();
         services.AddSingleton<UserSeeder>();
         services.AddHostedService<UsersDatabaseBootstrapper>();

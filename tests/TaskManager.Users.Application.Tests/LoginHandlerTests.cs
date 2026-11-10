@@ -41,6 +41,19 @@ public class LoginHandlerTests : HandlerTestBase
     }
 
     [Fact]
+    public async Task HandleAsync_passwordOver128Characters_returnsInvalidCredentialsWithoutHashing()
+    {
+        var tooLong = new string('a', 128) + "1";
+
+        var result = await Sut.HandleAsync(new LoginCommand("ana@x.com", tooLong), CancellationToken.None);
+
+        result.Error.ShouldBe(UserErrors.InvalidCredentials);
+        Hasher.DidNotReceiveWithAnyArgs().Verify(default, default!);
+        await Repo.DidNotReceiveWithAnyArgs().GetByEmailAsync(default!, default);
+        Metrics.Received(1).Increment(UsersMetrics.LoginFailed);
+    }
+
+    [Fact]
     public async Task HandleAsync_wrongPassword_returnsInvalidCredentials()
     {
         Repo.GetByEmailAsync(Arg.Any<Email>(), Arg.Any<CancellationToken>()).Returns(Ana);
