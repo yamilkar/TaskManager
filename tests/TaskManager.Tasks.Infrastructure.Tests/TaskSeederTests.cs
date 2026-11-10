@@ -36,7 +36,7 @@ public sealed class TaskSeederTests : IAsyncLifetime
         await _seeder.SeedAsync(default);
         await _seeder.SeedAsync(default);
 
-        var tasks = await _repo.ListByUserAsync(DemoId, default);
+        var tasks = (await _repo.ListByUserAsync(DemoId, 100, null, default)).Items;
         tasks.Count.ShouldBe(4);
 
         var byTitle = tasks.ToDictionary(t => t.Title);

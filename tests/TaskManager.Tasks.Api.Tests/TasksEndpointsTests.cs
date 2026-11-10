@@ -126,15 +126,15 @@ public sealed class TasksEndpointsTests
     {
         using var factory = new TasksApiFactory();
         var userId = Guid.NewGuid();
-        IReadOnlyList<TaskResponse> items = [Sample(Guid.NewGuid(), "a"), Sample(Guid.NewGuid(), "b")];
-        factory.List.HandleAsync(new ListTasksQuery(userId), Arg.Any<CancellationToken>())
-            .Returns(Result<IReadOnlyList<TaskResponse>>.Success(items));
+        var page = new TaskPage([Sample(Guid.NewGuid(), "a"), Sample(Guid.NewGuid(), "b")], null);
+        factory.List.HandleAsync(new ListTasksQuery(userId, null, null), Arg.Any<CancellationToken>())
+            .Returns(Result<TaskPage>.Success(page));
 
         var response = await ClientWith(factory, userId).GetAsync(Url);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.GetArrayLength().ShouldBe(2);
+        body.GetProperty("items").GetArrayLength().ShouldBe(2);
     }
 
     [Fact]

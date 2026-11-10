@@ -31,10 +31,10 @@ public sealed class TasksController : ApiControllerBase
 
     [HttpGet]
     public async Task<IActionResult> List(
-        [FromServices] IQueryHandler<ListTasksQuery, IReadOnlyList<TaskResponse>> handler,
+        [FromServices] IQueryHandler<ListTasksQuery, TaskPage> handler,
         CancellationToken ct)
     {
-        var result = await handler.HandleAsync(new ListTasksQuery(CurrentUserId), ct);
+        var result = await handler.HandleAsync(new ListTasksQuery(CurrentUserId, null, null), ct);
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error!);
     }
 
