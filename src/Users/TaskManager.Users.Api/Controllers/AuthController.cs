@@ -15,6 +15,7 @@ public sealed record RegisterRequest(string? FullName, string? Email, string? Pa
 public sealed record LoginRequest(string? Email, string? Password);
 
 [Route("api/v1/auth")]
+[RequireClientIp]
 public sealed class AuthController : ApiControllerBase
 {
     [HttpPost("register")]

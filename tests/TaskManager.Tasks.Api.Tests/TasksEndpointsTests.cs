@@ -169,6 +169,7 @@ public sealed class TasksEndpointsTests
     [Theory]
     [InlineData(null)]
     [InlineData("not-a-guid")]
+    [InlineData("00000000-0000-0000-0000-000000000000")]
     public async Task List_with_signed_token_lacking_valid_sub_returns_401_not_500(string? subject)
     {
         using var factory = new TasksApiFactory();

@@ -52,6 +52,15 @@ public class TaskItemTests
         result.Error.FieldErrors!.Keys.ShouldBe(["title", "status"], ignoreOrder: true);
     }
 
+    [Fact]
+    public void Create_emptyOwnerOrId_throwsBecauseItIsAProgrammingError()
+    {
+        Should.Throw<ArgumentException>(() => TaskItem.Create(Id, Guid.Empty, "t", null, null, null, Now))
+            .ParamName.ShouldBe("userId");
+        Should.Throw<ArgumentException>(() => TaskItem.Create(Guid.Empty, UserId, "t", null, null, null, Now))
+            .ParamName.ShouldBe("id");
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

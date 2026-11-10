@@ -30,6 +30,8 @@ public sealed class HealthEndpointsTests
     {
         using var factory = new UsersApiFactory(signingKey: "");
 
-        Should.Throw<InvalidOperationException>(() => factory.CreateClient());
+        // Same failure as the Tasks API: JwtOptions are validated once, in ApiCommon.
+        Should.Throw<Microsoft.Extensions.Options.OptionsValidationException>(() => factory.CreateClient())
+            .Message.ShouldContain("Jwt:SigningKey");
     }
 }

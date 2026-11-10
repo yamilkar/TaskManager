@@ -100,7 +100,7 @@ dotnet tool restore
 dotnet tool run reportgenerator "-reports:coverage-raw/**/coverage.cobertura.xml" "-targetdir:coverage-report" "-reporttypes:Html;TextSummary" "-assemblyfilters:+TaskManager.*.Domain;+TaskManager.*.Application"
 ```
 
-The measured line coverage on Domain and Application is 98.4%.
+The measured line coverage on Domain and Application is 98.5%.
 
 ## Configuration reference
 
@@ -134,7 +134,7 @@ Interactive docs (Scalar, Development only): `http://localhost:5080/scalar/v1` a
 | API | Method and route | Auth | Notes |
 |---|---|---|---|
 | Users | `POST /api/v1/auth/register` | anonymous | `201`, `400`, `409` (email taken), `429`, `503` (concurrent registration of the same email; retry) |
-| Users | `POST /api/v1/auth/login` | anonymous | `200` with `accessToken`, `400`, `401`, `429` |
+| Users | `POST /api/v1/auth/login` | anonymous | `200` with `accessToken`, `400`, `401`, `429`, `503` (no client IP; hosting misconfiguration) |
 | Users | `GET /api/v1/users/me` | JWT | current user; the client also uses it to validate a stored session |
 | Tasks | `POST /api/v1/tasks` | JWT | `201`, `400`, `401` |
 | Tasks | `GET /api/v1/tasks` | JWT | caller's tasks, newest first |

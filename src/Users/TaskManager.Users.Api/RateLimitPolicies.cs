@@ -44,9 +44,13 @@ public static class RateLimitPolicies
         });
     }
 
+    // A request without a client IP is not counted here: one shared bucket would let anyone lock everyone out.
+    // RequireClientIpAttribute rejects such requests with 503 before they reach a handler.
     private static RateLimitPartition<string> PerIpPerMinute(HttpContext context, int permitLimit) =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        context.Connection.RemoteIpAddress is not { } ip
+            ? RateLimitPartition.GetNoLimiter("no-client-ip")
+            : RateLimitPartition.GetFixedWindowLimiter(
+            ip.ToString(),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = permitLimit,

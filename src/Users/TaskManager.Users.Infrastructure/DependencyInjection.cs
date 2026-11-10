@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TaskManager.Infrastructure.DynamoDb;
 using TaskManager.SharedKernel;
-using TaskManager.SharedKernel.Security;
 using TaskManager.Users.Application.Ports;
 using TaskManager.Users.Infrastructure.Persistence;
 using TaskManager.Users.Infrastructure.Security;
@@ -17,14 +16,7 @@ public static class DependencyInjection
     {
         services.AddDynamoDb(configuration);
 
-        services.AddOptions<JwtOptions>()
-            .Bind(configuration.GetSection(JwtOptions.SectionName))
-            .Validate(options =>
-            {
-                options.EnsureValid();
-                return true;
-            })
-            .ValidateOnStart();
+        // JwtOptions are bound and validated once, in ApiCommon (AddTaskManagerApiDefaults).
         services.Configure<UserSeedOptions>(configuration.GetSection(UserSeedOptions.SectionName));
 
         services.TryAddSingleton<IClock, SystemClock>();

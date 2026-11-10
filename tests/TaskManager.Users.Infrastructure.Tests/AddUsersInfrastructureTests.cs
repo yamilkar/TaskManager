@@ -26,6 +26,18 @@ public sealed class AddUsersInfrastructureTests
     }
 
     [Fact]
+    public void AddUsersInfrastructure_doesNotRegisterJwtOptions_becauseApiCommonOwnsThem()
+    {
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
+
+        var services = new ServiceCollection().AddUsersInfrastructure(config);
+
+        services.ShouldNotContain(d =>
+            d.ServiceType.IsGenericType &&
+            d.ServiceType.GetGenericArguments().Contains(typeof(TaskManager.SharedKernel.Security.JwtOptions)));
+    }
+
+    [Fact]
     public void AddUsersInfrastructure_passwordHasher_isBuiltAtStartupNotOnFirstRequest()
     {
         // The hasher pre-computes its dummy hash in the constructor; registering a ready instance means

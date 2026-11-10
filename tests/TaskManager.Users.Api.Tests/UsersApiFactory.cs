@@ -20,14 +20,16 @@ namespace TaskManager.Users.Api.Tests;
 /// <summary>
 /// Hosts the Users API in the Testing environment. By default every handler is a substitute;
 /// with <c>useRealHandlers</c> the real handlers run on top of a substituted <see cref="IUserRepository"/>.
-/// <paramref name="remoteIp"/> sets the TCP peer address (TestServer leaves it null), and
-/// <paramref name="settings"/> adds configuration such as trusted proxies.
+/// <paramref name="remoteIp"/> sets the TCP peer address (default 127.0.0.1, as a real server would; TestServer
+/// leaves it null unless <paramref name="withoutRemoteIp"/>), and <paramref name="settings"/> adds configuration
+/// such as trusted proxies.
 /// </summary>
 public sealed class UsersApiFactory(
     string signingKey = UsersApiFactory.DefaultKey,
     bool useRealHandlers = false,
     IPAddress? remoteIp = null,
-    IReadOnlyDictionary<string, string?>? settings = null)
+    IReadOnlyDictionary<string, string?>? settings = null,
+    bool withoutRemoteIp = false)
     : WebApplicationFactory<Program>
 {
     public const string DefaultKey = "test-signing-key-0123456789-abcdefghijklmnop";
@@ -56,9 +58,9 @@ public sealed class UsersApiFactory(
 
         builder.ConfigureServices(services =>
         {
-            if (remoteIp is not null)
+            if (!withoutRemoteIp)
             {
-                services.AddSingleton<IStartupFilter>(new RemoteIpStartupFilter(remoteIp));
+                services.AddSingleton<IStartupFilter>(new RemoteIpStartupFilter(remoteIp ?? IPAddress.Loopback));
             }
 
             if (!useRealHandlers)

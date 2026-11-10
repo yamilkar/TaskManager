@@ -45,6 +45,17 @@ public sealed class TaskItem
         DateOnly? dueDate,
         DateTimeOffset now)
     {
+        // Ids come from code (Guid.NewGuid, the token's sub), never from user input, so an empty one is a bug.
+        if (id == Guid.Empty)
+        {
+            throw new ArgumentException("Task id must not be empty.", nameof(id));
+        }
+
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("Task owner must not be empty.", nameof(userId));
+        }
+
         var trimmedTitle = title?.Trim();
         var trimmedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         var errors = new Dictionary<string, string[]>();
