@@ -56,7 +56,7 @@ describe('TasksPage', () => {
 
   it('TasksPage: loads tasks on init', async () => {
     const { fixture, el } = setup();
-    ctrl.expectOne(URL).flush([mk('1', 'Existing')]);
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'Existing')], nextCursor: null });
     await settle(fixture);
     expect(el.querySelectorAll('li').length).toBe(1);
     expect(el.textContent).toContain('Existing');
@@ -64,7 +64,7 @@ describe('TasksPage', () => {
 
   it('TasksPage: after create shows "Task created" snackbar and new task first', async () => {
     const { fixture, el } = setup();
-    ctrl.expectOne(URL).flush([mk('1', 'Existing')]);
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'Existing')], nextCursor: null });
     await settle(fixture);
 
     type(el, 'Brand new');
@@ -84,7 +84,7 @@ describe('TasksPage', () => {
 
   it('TasksPage: maps server field errors onto the form and keeps the list', async () => {
     const { fixture, el } = setup();
-    ctrl.expectOne(URL).flush([mk('1', 'Existing')]);
+    ctrl.expectOne(URL).flush({ items: [mk('1', 'Existing')], nextCursor: null });
     await settle(fixture);
 
     type(el, 'x');
