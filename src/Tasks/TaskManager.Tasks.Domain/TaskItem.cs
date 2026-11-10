@@ -1,0 +1,89 @@
+using TaskManager.SharedKernel;
+
+namespace TaskManager.Tasks.Domain;
+
+public sealed class TaskItem
+{
+    public const int TitleMaxLength = 200;
+    public const int DescriptionMaxLength = 2000;
+
+    private TaskItem(
+        Guid id,
+        Guid userId,
+        string title,
+        string? description,
+        TaskItemStatus status,
+        DateOnly? dueDate,
+        DateTimeOffset createdAt,
+        DateTimeOffset updatedAt)
+    {
+        Id = id;
+        UserId = userId;
+        Title = title;
+        Description = description;
+        Status = status;
+        DueDate = dueDate;
+        CreatedAt = createdAt;
+        UpdatedAt = updatedAt;
+    }
+
+    public Guid Id { get; }
+    public Guid UserId { get; }
+    public string Title { get; }
+    public string? Description { get; }
+    public TaskItemStatus Status { get; }
+    public DateOnly? DueDate { get; }
+    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset UpdatedAt { get; }
+
+    public static Result<TaskItem> Create(
+        Guid id,
+        Guid userId,
+        string? title,
+        string? description,
+        TaskItemStatus status,
+        DateOnly? dueDate,
+        DateTimeOffset now)
+    {
+        var trimmedTitle = title?.Trim();
+        var trimmedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        var errors = new Dictionary<string, string[]>();
+
+        if (string.IsNullOrEmpty(trimmedTitle))
+        {
+            errors["title"] = ["Title is required."];
+        }
+        else if (trimmedTitle.Length > TitleMaxLength)
+        {
+            errors["title"] = ["Title must be at most 200 characters."];
+        }
+
+        if (trimmedDescription is { Length: > DescriptionMaxLength })
+        {
+            errors["description"] = ["Description must be at most 2000 characters."];
+        }
+
+        if (dueDate is { } due && due < DateOnly.FromDateTime(now.UtcDateTime))
+        {
+            errors["dueDate"] = ["Due date cannot be in the past."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return Error.Validation("validation_failed", "One or more validation errors occurred.", errors);
+        }
+
+        return new TaskItem(id, userId, trimmedTitle!, trimmedDescription, status, dueDate, now, now);
+    }
+
+    public static TaskItem Rehydrate(
+        Guid id,
+        Guid userId,
+        string title,
+        string? description,
+        TaskItemStatus status,
+        DateOnly? dueDate,
+        DateTimeOffset createdAt,
+        DateTimeOffset updatedAt)
+        => new(id, userId, title, description, status, dueDate, createdAt, updatedAt);
+}
