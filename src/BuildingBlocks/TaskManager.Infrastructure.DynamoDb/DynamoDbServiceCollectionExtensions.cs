@@ -12,6 +12,8 @@ public static class DynamoDbServiceCollectionExtensions
     {
         var options = configuration.GetSection(DynamoDbOptions.SectionName).Get<DynamoDbOptions>() ?? new DynamoDbOptions();
 
+        services.Configure<DynamoDbOptions>(configuration.GetSection(DynamoDbOptions.SectionName));
+
         services.AddSingleton<IAmazonDynamoDB>(_ =>
         {
             if (!string.IsNullOrWhiteSpace(options.ServiceUrl))
