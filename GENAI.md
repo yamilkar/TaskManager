@@ -107,7 +107,7 @@ AI-review-driven fixes during execution:
 - **HS256 was not pinned**; the accepted algorithm is now restricted to HS256.
 - The **bearer token leaked to look-alike origins** through a string prefix match; it is now sent only on an exact origin match.
 - **Concurrent registration** could fail with `TransactionConflict`; the repository now retries and still returns exactly one winner.
-- The **PR-review workflow lacked the `id-token` permission** that `claude-code-action` needs.
+- The **PR-review workflow lacked the `id-token` permission** that `claude-code-action` needs for its OIDC → GitHub App token exchange. The human reviewer then chose the more secure option: pass the job's own `GITHUB_TOKEN` (least privilege, no third-party token minting) and drop `id-token: write`.
 
 A known and accepted item (console): the only console entry seen is the browser's own "Failed to load resource: 401" for the intentional wrong-password attempt. It is emitted by the browser, not by app code, and cannot be suppressed without breaking the API contract (see README, Known limitations).
 
