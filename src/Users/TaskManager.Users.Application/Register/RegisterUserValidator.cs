@@ -1,30 +1,29 @@
 using TaskManager.SharedKernel;
-using TaskManager.Users.Application.Contracts;
 using TaskManager.Users.Domain;
 
-namespace TaskManager.Users.Application.Validation;
+namespace TaskManager.Users.Application.Register;
 
-public static class RegisterUserRequestValidator
+public static class RegisterUserValidator
 {
     public const int PasswordMinLength = 8;
     public const int PasswordMaxLength = 128;
 
-    public static Error? Validate(RegisterUserRequest r)
+    public static Error? Validate(RegisterUserCommand c)
     {
         var fields = new Dictionary<string, string[]>();
 
-        var nameProblem = User.ValidateFullName(r.FullName);
+        var nameProblem = User.ValidateFullName(c.FullName);
         if (nameProblem is not null)
         {
             fields["fullName"] = [nameProblem];
         }
 
-        if (Email.Create(r.Email).IsFailure)
+        if (Email.Create(c.Email).IsFailure)
         {
             fields["email"] = [Email.InvalidMessage];
         }
 
-        var password = r.Password;
+        var password = c.Password;
         if (string.IsNullOrEmpty(password))
         {
             fields["password"] = ["Password is required."];

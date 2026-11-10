@@ -5,7 +5,8 @@ using System.Text.Json;
 using NSubstitute;
 using TaskManager.SharedKernel;
 using TaskManager.Testing;
-using TaskManager.Users.Application.Contracts;
+using TaskManager.Users.Application;
+using TaskManager.Users.Application.GetCurrentUser;
 
 namespace TaskManager.Users.Api.Tests;
 
@@ -55,11 +56,11 @@ public sealed class UsersMeEndpointTests
     }
 
     [Fact]
-    public async Task Me_with_valid_token_calls_service_with_sub_and_returns_200()
+    public async Task Me_with_valid_token_queries_with_sub_and_returns_200()
     {
         using var factory = new UsersApiFactory();
         var id = Guid.NewGuid();
-        factory.Users.GetByIdAsync(id, Arg.Any<CancellationToken>())
+        factory.Me.HandleAsync(new GetCurrentUserQuery(id), Arg.Any<CancellationToken>())
             .Returns(Result<UserResponse>.Success(new UserResponse(id, "Ana", "ana@x.com", DateTimeOffset.UtcNow)));
         var token = TestJwt.Create(id, factory.SigningKey);
 
@@ -68,6 +69,6 @@ public sealed class UsersMeEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         body.GetProperty("id").GetGuid().ShouldBe(id);
-        await factory.Users.Received(1).GetByIdAsync(id, Arg.Any<CancellationToken>());
+        await factory.Me.Received(1).HandleAsync(new GetCurrentUserQuery(id), Arg.Any<CancellationToken>());
     }
 }

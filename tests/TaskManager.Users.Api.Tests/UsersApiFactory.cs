@@ -5,18 +5,37 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
+using TaskManager.SharedKernel;
 using TaskManager.Users.Application;
+using TaskManager.Users.Application.GetCurrentUser;
+using TaskManager.Users.Application.Login;
+using TaskManager.Users.Application.Ports;
+using TaskManager.Users.Application.Register;
 using TaskManager.Users.Infrastructure;
 
 namespace TaskManager.Users.Api.Tests;
 
-public sealed class UsersApiFactory(string signingKey = UsersApiFactory.DefaultKey) : WebApplicationFactory<Program>
+/// <summary>
+/// Hosts the Users API in the Testing environment. By default every handler is a substitute;
+/// with <c>useRealHandlers</c> the real handlers run on top of a substituted <see cref="IUserRepository"/>.
+/// </summary>
+public sealed class UsersApiFactory(string signingKey = UsersApiFactory.DefaultKey, bool useRealHandlers = false)
+    : WebApplicationFactory<Program>
 {
     public const string DefaultKey = "test-signing-key-0123456789-abcdefghijklmnop";
 
     public string SigningKey { get; } = signingKey;
 
-    public IUserService Users { get; } = Substitute.For<IUserService>();
+    public ICommandHandler<RegisterUserCommand, UserResponse> Register { get; } =
+        Substitute.For<ICommandHandler<RegisterUserCommand, UserResponse>>();
+
+    public ICommandHandler<LoginCommand, AuthResponse> Login { get; } =
+        Substitute.For<ICommandHandler<LoginCommand, AuthResponse>>();
+
+    public IQueryHandler<GetCurrentUserQuery, UserResponse> Me { get; } =
+        Substitute.For<IQueryHandler<GetCurrentUserQuery, UserResponse>>();
+
+    public IUserRepository Repository { get; } = Substitute.For<IUserRepository>();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -26,8 +45,15 @@ public sealed class UsersApiFactory(string signingKey = UsersApiFactory.DefaultK
 
         builder.ConfigureServices(services =>
         {
-            Replace<IUserService>(services, Users);
-            Replace<IAmazonDynamoDB>(services, Substitute.For<IAmazonDynamoDB>());
+            if (!useRealHandlers)
+            {
+                Replace(services, Register);
+                Replace(services, Login);
+                Replace(services, Me);
+            }
+
+            Replace(services, Repository);
+            Replace(services, Substitute.For<IAmazonDynamoDB>());
 
             var bootstrappers = services.Where(d =>
                 d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(UsersDatabaseBootstrapper)).ToList();

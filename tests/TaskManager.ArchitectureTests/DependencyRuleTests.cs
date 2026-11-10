@@ -5,20 +5,52 @@ namespace TaskManager.ArchitectureTests;
 
 public class DependencyRuleTests
 {
+    // One well-known public type per assembly is enough to load it; no marker classes needed.
     private static readonly Dictionary<string, Assembly> Assemblies = new()
     {
-        ["TaskManager.SharedKernel"] = typeof(SharedKernel.AssemblyMarker).Assembly,
-        ["TaskManager.Infrastructure.DynamoDb"] = typeof(Infrastructure.DynamoDb.AssemblyMarker).Assembly,
-        ["TaskManager.ApiCommon"] = typeof(ApiCommon.AssemblyMarker).Assembly,
-        ["TaskManager.Users.Domain"] = typeof(Users.Domain.AssemblyMarker).Assembly,
-        ["TaskManager.Users.Application"] = typeof(Users.Application.AssemblyMarker).Assembly,
-        ["TaskManager.Users.Infrastructure"] = typeof(Users.Infrastructure.AssemblyMarker).Assembly,
-        ["TaskManager.Users.Api"] = typeof(Users.Api.AssemblyMarker).Assembly,
-        ["TaskManager.Tasks.Domain"] = typeof(Tasks.Domain.AssemblyMarker).Assembly,
-        ["TaskManager.Tasks.Application"] = typeof(Tasks.Application.AssemblyMarker).Assembly,
-        ["TaskManager.Tasks.Infrastructure"] = typeof(Tasks.Infrastructure.AssemblyMarker).Assembly,
-        ["TaskManager.Tasks.Api"] = typeof(Tasks.Api.AssemblyMarker).Assembly,
+        ["TaskManager.SharedKernel"] = typeof(SharedKernel.Error).Assembly,
+        ["TaskManager.Infrastructure.DynamoDb"] = typeof(Infrastructure.DynamoDb.DynamoDbOptions).Assembly,
+        ["TaskManager.ApiCommon"] = typeof(ApiCommon.ApiControllerBase).Assembly,
+        ["TaskManager.Users.Domain"] = typeof(Users.Domain.User).Assembly,
+        ["TaskManager.Users.Application"] = typeof(Users.Application.UserErrors).Assembly,
+        ["TaskManager.Users.Infrastructure"] = typeof(Users.Infrastructure.UsersDatabaseBootstrapper).Assembly,
+        ["TaskManager.Users.Api"] = typeof(Users.Api.Controllers.AuthController).Assembly,
+        ["TaskManager.Tasks.Domain"] = typeof(Tasks.Domain.TaskItem).Assembly,
+        ["TaskManager.Tasks.Application"] = typeof(Tasks.Application.TaskErrors).Assembly,
+        ["TaskManager.Tasks.Infrastructure"] = typeof(Tasks.Infrastructure.TasksDatabaseBootstrapper).Assembly,
+        ["TaskManager.Tasks.Api"] = typeof(Tasks.Api.Controllers.TasksController).Assembly,
     };
+
+    private static readonly Type[] HandlerInterfaces = [typeof(SharedKernel.ICommandHandler<,>), typeof(SharedKernel.IQueryHandler<,>)];
+
+    private static bool IsHandler(Type type) =>
+        type.GetInterfaces().Any(i => i.IsGenericType && HandlerInterfaces.Contains(i.GetGenericTypeDefinition()));
+
+    [Theory]
+    [InlineData("Users")]
+    [InlineData("Tasks")]
+    public void Application_use_cases_are_sealed_command_or_query_handlers(string ctx)
+    {
+        var types = Load($"TaskManager.{ctx}.Application").GetTypes().Where(t => t is { IsClass: true, IsAbstract: false }).ToList();
+
+        var handlersWithoutInterface = types
+            .Where(t => t.Name.EndsWith("Handler", StringComparison.Ordinal) && !IsHandler(t))
+            .Select(t => t.FullName);
+        handlersWithoutInterface.ShouldBeEmpty("every *Handler must implement ICommandHandler or IQueryHandler");
+
+        types.Where(IsHandler).Where(t => !t.IsSealed).Select(t => t.FullName).ShouldBeEmpty("handlers must be sealed");
+
+        types.Where(t => t.Name.EndsWith("Service", StringComparison.Ordinal)).Select(t => t.FullName)
+            .ShouldBeEmpty("use cases are handlers, not services");
+    }
+
+    [Theory]
+    [InlineData("Users")]
+    [InlineData("Tasks")]
+    public void Api_controllers_depend_on_handler_interfaces_not_implementations(string ctx) =>
+        Types.InAssembly(Load($"TaskManager.{ctx}.Api")).That().HaveNameEndingWith("Controller").ShouldNot()
+            .HaveDependencyOnAny(Load($"TaskManager.{ctx}.Application").GetTypes().Where(IsHandler).Select(t => t.FullName!).ToArray())
+            .GetResult().ShouldBeSuccessful("controllers inject ICommandHandler/IQueryHandler, not concrete handlers");
 
     private static Assembly Load(string name) => Assemblies[name];
 

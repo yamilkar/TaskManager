@@ -5,7 +5,8 @@ using System.Text.Json;
 using NSubstitute;
 using TaskManager.SharedKernel;
 using TaskManager.Users.Application;
-using TaskManager.Users.Application.Contracts;
+using TaskManager.Users.Application.Login;
+using TaskManager.Users.Application.Register;
 
 namespace TaskManager.Users.Api.Tests;
 
@@ -19,7 +20,7 @@ public sealed class AuthEndpointsTests
     public async Task Register_returns_201_with_location_and_body()
     {
         using var factory = new UsersApiFactory();
-        factory.Users.RegisterAsync(Arg.Any<RegisterUserRequest>(), Arg.Any<CancellationToken>())
+        factory.Register.HandleAsync(Arg.Any<RegisterUserCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<UserResponse>.Success(Ana));
 
         var response = await factory.CreateClient().PostAsJsonAsync("/api/v1/auth/register",
@@ -36,7 +37,7 @@ public sealed class AuthEndpointsTests
     public async Task Register_returns_409_problem_with_code_when_email_taken()
     {
         using var factory = new UsersApiFactory();
-        factory.Users.RegisterAsync(Arg.Any<RegisterUserRequest>(), Arg.Any<CancellationToken>())
+        factory.Register.HandleAsync(Arg.Any<RegisterUserCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<UserResponse>.Failure(UserErrors.EmailAlreadyRegistered));
 
         var response = await factory.CreateClient().PostAsJsonAsync("/api/v1/auth/register",
@@ -52,7 +53,7 @@ public sealed class AuthEndpointsTests
     {
         using var factory = new UsersApiFactory();
         var error = Error.Validation("validation_failed", "bad", new Dictionary<string, string[]> { ["email"] = ["Email is invalid."] });
-        factory.Users.RegisterAsync(Arg.Any<RegisterUserRequest>(), Arg.Any<CancellationToken>())
+        factory.Register.HandleAsync(Arg.Any<RegisterUserCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<UserResponse>.Failure(error));
 
         var response = await factory.CreateClient().PostAsJsonAsync("/api/v1/auth/register",
@@ -88,7 +89,7 @@ public sealed class AuthEndpointsTests
     public async Task Login_returns_200_with_token()
     {
         using var factory = new UsersApiFactory();
-        factory.Users.LoginAsync(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
+        factory.Login.HandleAsync(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<AuthResponse>.Success(new AuthResponse("tok", DateTimeOffset.UtcNow.AddHours(1), Ana)));
 
         var response = await factory.CreateClient().PostAsJsonAsync("/api/v1/auth/login",
@@ -103,7 +104,7 @@ public sealed class AuthEndpointsTests
     public async Task Login_returns_401_problem_with_message_Invalid_email_or_password()
     {
         using var factory = new UsersApiFactory();
-        factory.Users.LoginAsync(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
+        factory.Login.HandleAsync(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<AuthResponse>.Failure(UserErrors.InvalidCredentials));
 
         var response = await factory.CreateClient().PostAsJsonAsync("/api/v1/auth/login",
@@ -117,7 +118,9 @@ public sealed class AuthEndpointsTests
     [Fact]
     public async Task Login_with_empty_fields_returns_400_validation_problem()
     {
-        using var factory = new UsersApiFactory();
+        // Real handlers over a substituted repository: validation lives in the login handler,
+        // so this checks the handler-error to HTTP mapping end to end.
+        using var factory = new UsersApiFactory(useRealHandlers: true);
 
         var response = await factory.CreateClient().PostAsJsonAsync("/api/v1/auth/login", new { email = "", password = "" });
 
@@ -125,14 +128,14 @@ public sealed class AuthEndpointsTests
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         body.GetProperty("errors").TryGetProperty("email", out _).ShouldBeTrue();
         body.GetProperty("errors").TryGetProperty("password", out _).ShouldBeTrue();
-        await factory.Users.DidNotReceiveWithAnyArgs().LoginAsync(default!, default);
+        await factory.Repository.DidNotReceiveWithAnyArgs().GetByEmailAsync(default!, default);
     }
 
     [Fact]
     public async Task Login_with_malformed_email_returns_401()
     {
         using var factory = new UsersApiFactory();
-        factory.Users.LoginAsync(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
+        factory.Login.HandleAsync(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<AuthResponse>.Failure(UserErrors.InvalidCredentials));
 
         var response = await factory.CreateClient().PostAsJsonAsync("/api/v1/auth/login",
@@ -145,7 +148,7 @@ public sealed class AuthEndpointsTests
     public async Task Login_sixth_request_within_a_minute_returns_429()
     {
         using var factory = new UsersApiFactory();
-        factory.Users.LoginAsync(Arg.Any<LoginRequest>(), Arg.Any<CancellationToken>())
+        factory.Login.HandleAsync(Arg.Any<LoginCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<AuthResponse>.Failure(UserErrors.InvalidCredentials));
         var client = factory.CreateClient();
 

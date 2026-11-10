@@ -6,7 +6,9 @@ using System.Text.Json;
 using NSubstitute;
 using TaskManager.SharedKernel;
 using TaskManager.Tasks.Application;
-using TaskManager.Tasks.Application.Contracts;
+using TaskManager.Tasks.Application.CreateTask;
+using TaskManager.Tasks.Application.GetTask;
+using TaskManager.Tasks.Application.ListTasks;
 using TaskManager.Testing;
 
 namespace TaskManager.Tasks.Api.Tests;
@@ -48,7 +50,7 @@ public sealed class TasksEndpointsTests
         using var factory = new TasksApiFactory();
         var userId = Guid.NewGuid();
         var taskId = Guid.NewGuid();
-        factory.Tasks.CreateAsync(userId, Arg.Any<CreateTaskRequest>(), Arg.Any<CancellationToken>())
+        factory.Create.HandleAsync(Arg.Is<CreateTaskCommand>(c => c.UserId == userId), Arg.Any<CancellationToken>())
             .Returns(Result<TaskResponse>.Success(Sample(taskId, "Write docs")));
 
         var response = await ClientWith(factory, userId).PostAsJsonAsync(Url, new { title = "Write docs" });
@@ -57,8 +59,8 @@ public sealed class TasksEndpointsTests
         response.Headers.Location!.AbsolutePath.ShouldBe($"{Url}/{taskId}");
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         body.GetProperty("id").GetGuid().ShouldBe(taskId);
-        await factory.Tasks.Received(1).CreateAsync(
-            userId, Arg.Is<CreateTaskRequest>(r => r.Title == "Write docs"), Arg.Any<CancellationToken>());
+        await factory.Create.Received(1).HandleAsync(
+            Arg.Is<CreateTaskCommand>(c => c.UserId == userId && c.Title == "Write docs"), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -67,23 +69,25 @@ public sealed class TasksEndpointsTests
         using var factory = new TasksApiFactory();
         var userId = Guid.NewGuid();
         var other = Guid.NewGuid();
-        factory.Tasks.CreateAsync(Arg.Any<Guid>(), Arg.Any<CreateTaskRequest>(), Arg.Any<CancellationToken>())
+        factory.Create.HandleAsync(Arg.Any<CreateTaskCommand>(), Arg.Any<CancellationToken>())
             .Returns(Result<TaskResponse>.Success(Sample(Guid.NewGuid())));
 
         var response = await ClientWith(factory, userId)
             .PostAsync(Url, Json($$"""{"title":"x","userId":"{{other}}"}"""));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
-        await factory.Tasks.Received(1).CreateAsync(userId, Arg.Any<CreateTaskRequest>(), Arg.Any<CancellationToken>());
-        await factory.Tasks.DidNotReceive().CreateAsync(other, Arg.Any<CreateTaskRequest>(), Arg.Any<CancellationToken>());
+        await factory.Create.Received(1).HandleAsync(
+            Arg.Is<CreateTaskCommand>(c => c.UserId == userId), Arg.Any<CancellationToken>());
+        await factory.Create.DidNotReceive().HandleAsync(
+            Arg.Is<CreateTaskCommand>(c => c.UserId == other), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Create_with_unknown_status_returns_400_validation_problem()
     {
-        // Real TaskService over a substituted repository: the status check lives in the service,
-        // so this keeps the test honest about the service-error to HTTP mapping.
-        using var factory = new TasksApiFactory(useRealService: true);
+        // Real handlers over a substituted repository: the status check lives in the handler,
+        // so this keeps the test honest about the handler-error to HTTP mapping.
+        using var factory = new TasksApiFactory(useRealHandlers: true);
 
         var response = await ClientWith(factory, Guid.NewGuid())
             .PostAsync(Url, Json("""{"title":"x","status":"Blocked"}"""));
@@ -114,8 +118,7 @@ public sealed class TasksEndpointsTests
             .PostAsync(Url, Json("""{"title":"x","dueDate":"10/11/2026"}"""));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        await factory.Tasks.DidNotReceive().CreateAsync(
-            Arg.Any<Guid>(), Arg.Any<CreateTaskRequest>(), Arg.Any<CancellationToken>());
+        await factory.Create.DidNotReceive().HandleAsync(Arg.Any<CreateTaskCommand>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -124,7 +127,7 @@ public sealed class TasksEndpointsTests
         using var factory = new TasksApiFactory();
         var userId = Guid.NewGuid();
         IReadOnlyList<TaskResponse> items = [Sample(Guid.NewGuid(), "a"), Sample(Guid.NewGuid(), "b")];
-        factory.Tasks.ListForUserAsync(userId, Arg.Any<CancellationToken>())
+        factory.List.HandleAsync(new ListTasksQuery(userId), Arg.Any<CancellationToken>())
             .Returns(Result<IReadOnlyList<TaskResponse>>.Success(items));
 
         var response = await ClientWith(factory, userId).GetAsync(Url);
@@ -140,7 +143,7 @@ public sealed class TasksEndpointsTests
         using var factory = new TasksApiFactory();
         var userId = Guid.NewGuid();
         var taskId = Guid.NewGuid();
-        factory.Tasks.GetByIdAsync(userId, taskId, Arg.Any<CancellationToken>())
+        factory.Get.HandleAsync(new GetTaskQuery(userId, taskId), Arg.Any<CancellationToken>())
             .Returns(Result<TaskResponse>.Success(Sample(taskId)));
 
         var response = await ClientWith(factory, userId).GetAsync($"{Url}/{taskId}");
@@ -154,13 +157,13 @@ public sealed class TasksEndpointsTests
         using var factory = new TasksApiFactory();
         var caller = Guid.NewGuid();
         var taskId = Guid.NewGuid();
-        factory.Tasks.GetByIdAsync(caller, taskId, Arg.Any<CancellationToken>())
+        factory.Get.HandleAsync(new GetTaskQuery(caller, taskId), Arg.Any<CancellationToken>())
             .Returns(Result<TaskResponse>.Failure(TaskErrors.NotFound));
 
         var response = await ClientWith(factory, caller).GetAsync($"{Url}/{taskId}");
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        await factory.Tasks.Received(1).GetByIdAsync(caller, taskId, Arg.Any<CancellationToken>());
+        await factory.Get.Received(1).HandleAsync(new GetTaskQuery(caller, taskId), Arg.Any<CancellationToken>());
     }
 
     [Fact]

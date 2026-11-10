@@ -1,20 +1,19 @@
 using TaskManager.SharedKernel;
-using TaskManager.Users.Application.Contracts;
 
-namespace TaskManager.Users.Application.Validation;
+namespace TaskManager.Users.Application.Login;
 
-public static class LoginRequestValidator
+public static class LoginValidator
 {
-    public static Error? Validate(LoginRequest r)
+    public static Error? Validate(LoginCommand c)
     {
         var fields = new Dictionary<string, string[]>();
 
-        if (string.IsNullOrWhiteSpace(r.Email))
+        if (string.IsNullOrWhiteSpace(c.Email))
         {
             fields["email"] = ["Email is required."];
         }
 
-        if (string.IsNullOrEmpty(r.Password))
+        if (string.IsNullOrEmpty(c.Password))
         {
             fields["password"] = ["Password is required."];
         }

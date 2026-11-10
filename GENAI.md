@@ -79,7 +79,7 @@ All tests should pass before merging.
 - **Test-driven development**: every task began with a failing test (RED), then the minimum code to pass (GREEN).
 - **Independent per-task review**: each task got a separate AI review for spec compliance and code quality, with fix loops until clean.
 - **Architecture tests** (NetArchTest) enforce the dependency rule; Domain and Application reference no AWS or ASP.NET packages.
-- **CI gates**: `dotnet build -warnaserror`, all tests, a line-coverage gate of 80% on Domain and Application (measured 98.3%), `ng lint --max-warnings 0`, and a symlink guard.
+- **CI gates**: `dotnet build -warnaserror`, all tests, a line-coverage gate of 80% on Domain and Application (measured 98.4%), `ng lint --max-warnings 0`, and a symlink guard.
 - **Manual browser walkthrough** of the full stack:
   - wrong password shows an alert, keeps the email, clears the password, and does not navigate;
   - the demo login shows the seeded tasks;
@@ -93,7 +93,9 @@ All tests should pass before merging.
 
 Human-driven, during design:
 
-- Replaced a handler-per-use-case design with **Controller → Service → Repository** and DTOs (less ceremony, still testable).
+- During design, replaced a mediator-style handler design with **Controller → Service → Repository** and DTOs (less ceremony, still testable).
+- During PR review, the human changed direction to **CQRS-style use cases**: one command or query handler per use case (`ICommandHandler`/`IQueryHandler`), injected directly into controllers, still with **no mediator**. Each use case now has one class with one reason to change, and architecture tests enforce the rule.
+- Also during PR review, the human asked to **cut boilerplate**: removed the `AssemblyMarker` classes (architecture tests load assemblies through real types), the Angular CLI scaffolding (`web/README.md`, `web/.vscode/`), merged `web/.gitignore` and `web/.editorconfig` into the root files, moved the Prettier config into `package.json`, and dropped `appsettings.json` keys that only repeated code defaults. `coverlet.runsettings` was kept: without it, generated regex code counts toward coverage.
 - **Email verification scoped out** because of the Amazon SES sandbox, and documented as a limitation.
 - **`/users/me` kept** as the Users API's authorized endpoint and for validating a session on startup.
 - Asked for an explanation of the **email-guard transaction versus a GSI**; a GSI cannot enforce uniqueness and is eventually consistent, so the guard item stays.
@@ -117,8 +119,8 @@ The five review-focus items, and where each is tested:
 
 | # | Edge case | Behavior | Tested in |
 |---|---|---|---|
-| 1 | Email case and whitespace | ` Ana@X.com ` registers; `ana@x.com` logs in to the same account; `ANA@x.com` then gets `409` | `Email` (Domain) and `UserService` (Application) tests |
-| 2 | Cross-user access | user A's token requesting user B's task id gets `404`, never B's data (the key is `userId` + `_id`) | `TaskService` tests and Tasks API tests |
+| 1 | Email case and whitespace | ` Ana@X.com ` registers; `ana@x.com` logs in to the same account; `ANA@x.com` then gets `409` | `Email` (Domain) and `RegisterUserHandler`/`LoginHandler` (Application) tests |
+| 2 | Cross-user access | user A's token requesting user B's task id gets `404`, never B's data (the key is `userId` + `_id`) | `GetTaskHandler` tests and Tasks API tests |
 | 3 | Due date at the UTC boundary | today (UTC) is accepted, yesterday is rejected | Tasks Application tests with a fixed clock |
 | 4 | Malformed input | malformed JSON, a missing body or an unknown `status` return `400` ProblemDetails, never `500` | Users API and Tasks API tests |
 | 5 | Login 401 versus session expiry | a login `401` shows "Invalid email or password." with no "session expired" redirect; a Tasks API `401` triggers it | Angular `errorInterceptor` tests |

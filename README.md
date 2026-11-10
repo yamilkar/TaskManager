@@ -24,11 +24,11 @@ flowchart LR
 
 The Tasks API never reads the Users table. It trusts the `sub` claim of a JWT signed by the Users API with a shared signing key.
 
-Each API follows Clean Architecture and the pattern Controller → Service → Repository, using explicit DTOs. There is no EF, Dapper, MediatR or handler-per-use-case.
+Each API follows Clean Architecture with CQRS-style use cases: Controller → command/query handler → Repository. Each use case is a command (changes state) or a query (read only) with one handler that implements `ICommandHandler` or `IQueryHandler`. Controllers inject the handler they need directly, so there is no mediator. There is no EF, Dapper or MediatR.
 
 ```mermaid
 flowchart TB
-    Api["Api: controllers, composition root"] --> App["Application: services, DTOs, validators, ports"]
+    Api["Api: controllers, composition root"] --> App["Application: command/query handlers, DTOs, validators, ports"]
     App --> Dom["Domain: entities, value objects"]
     Infra["Infrastructure: DynamoDB repositories, hasher, JWT issuer, seeders"] --> App
     Api --> Infra
@@ -100,7 +100,7 @@ dotnet tool restore
 dotnet tool run reportgenerator "-reports:coverage-raw/**/coverage.cobertura.xml" "-targetdir:coverage-report" "-reporttypes:Html;TextSummary" "-assemblyfilters:+TaskManager.*.Domain;+TaskManager.*.Application"
 ```
 
-The measured line coverage on Domain and Application is 98.3%.
+The measured line coverage on Domain and Application is 98.4%.
 
 ## Configuration reference
 
