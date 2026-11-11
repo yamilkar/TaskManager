@@ -35,6 +35,7 @@
       <mat-form-field appearance="outline">
         <mat-label>Password</mat-label>
         <input matInput type="password" name="password" formControlName="password" autocomplete="new-password" />
+        <mat-hint>At least 8 characters, with a letter and a digit.</mat-hint>
         @if (form.controls.password.hasError('required')) {
           <mat-error>Password is required.</mat-error>
         } @else if (form.controls.password.hasError('minlength')) {
@@ -42,7 +43,7 @@
         } @else if (form.controls.password.hasError('maxlength')) {
           <mat-error>Password must be at most 128 characters.</mat-error>
         } @else if (form.controls.password.hasError('pattern')) {
-          <mat-error>Password must contain a letter and a digit.</mat-error>
+          <mat-error>Password must contain at least one letter and one digit.</mat-error>
         }
         <app-form-error matError [errors]="form.controls.password.errors?.['server']" />
       </mat-form-field>

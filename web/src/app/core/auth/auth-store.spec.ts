@@ -55,10 +55,30 @@ describe('AuthStore', () => {
     api.login.mockReturnValue(of({ accessToken: 'tok', expiresAt: future(), user }));
     const store = createStore();
 
-    await store.register({ fullName: 'Ana', email: 'a@x.com', password: 'pw' });
+    await expect(store.register({ fullName: 'Ana', email: 'a@x.com', password: 'pw' })).resolves.toBe('signed-in');
 
     expect(api.login).toHaveBeenCalledWith({ email: 'a@x.com', password: 'pw' });
     expect(store.isAuthenticated()).toBe(true);
+  });
+
+  it('register resolves "registered" and stays signed out when login fails after sign-up', async () => {
+    api.register.mockReturnValue(of(user));
+    api.login.mockReturnValue(throwError(() => ({ status: 503, message: 'busy' })));
+    const store = createStore();
+
+    await expect(store.register({ fullName: 'Ana', email: 'a@x.com', password: 'pw' })).resolves.toBe('registered');
+
+    expect(store.isAuthenticated()).toBe(false);
+  });
+
+  it('register rethrows an unexpected non-HTTP error from the follow-up login', async () => {
+    api.register.mockReturnValue(of(user));
+    api.login.mockReturnValue(throwError(() => new TypeError('boom')));
+    const store = createStore();
+
+    await expect(store.register({ fullName: 'Ana', email: 'a@x.com', password: 'pw' })).rejects.toBeInstanceOf(
+      TypeError,
+    );
   });
 
   it('logout clears the session', async () => {

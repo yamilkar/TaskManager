@@ -35,6 +35,12 @@ describe('Login', () => {
     store.login.mockReset();
   });
 
+  it('Login: reason=registered shows "Account created. Please sign in."', () => {
+    const { el } = setup({ reason: 'registered' });
+
+    expect(el.textContent).toContain('Account created. Please sign in.');
+  });
+
   it('Login: "Use demo account" fills email and password', async () => {
     const { fixture, el } = setup();
     expect(el.textContent).toContain('Demo account: demo@taskmanager.dev / Demo123!');

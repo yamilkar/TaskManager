@@ -5,7 +5,7 @@ import { AppError } from '../../../core/http/app-error';
 import { Register } from './register';
 
 describe('Register', () => {
-  const store = { register: vi.fn<(r: unknown) => Promise<void>>() };
+  const store = { register: vi.fn<(r: unknown) => Promise<'signed-in' | 'registered'>>() };
   let navigate: ReturnType<typeof vi.spyOn>;
 
   function setup() {
@@ -46,6 +46,42 @@ describe('Register', () => {
     expect(store.register).not.toHaveBeenCalled();
   });
 
+  it('Register: shows the password hint before anything is typed', () => {
+    const { el } = setup();
+
+    expect(el.textContent).toContain('At least 8 characters, with a letter and a digit.');
+  });
+
+  it('Register: weak password shows the rule and does not submit', () => {
+    const { fixture, el } = setup();
+    fill(el, 'password');
+    type(q(el, 'input[name=password]'), 'password');
+    fixture.detectChanges();
+    submit(el).click();
+    fixture.detectChanges();
+
+    expect(el.textContent).toContain('Password must contain at least one letter and one digit.');
+    expect(store.register).not.toHaveBeenCalled();
+  });
+
+  it('Register: server password errors show under the password field', async () => {
+    const err: AppError = {
+      status: 400,
+      message: 'One or more validation errors occurred.',
+      fieldErrors: { password: ['Password must be at least 8 characters.'] },
+    };
+    store.register.mockRejectedValue(err);
+    const { fixture, el } = setup();
+    fill(el);
+    fixture.detectChanges();
+    submit(el).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(el.textContent).toContain('Password must be at least 8 characters.');
+    expect(el.querySelector('[role=alert]')).toBeNull();
+  });
+
   it('Register: 409 sets server error on the email control', async () => {
     const err: AppError = { status: 409, message: 'Email already registered.', fieldErrors: {} };
     store.register.mockRejectedValue(err);
@@ -60,8 +96,19 @@ describe('Register', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it('Register: account created but not signed in navigates to /login?reason=registered', async () => {
+    store.register.mockResolvedValue('registered');
+    const { fixture, el } = setup();
+    fill(el);
+    fixture.detectChanges();
+    submit(el).click();
+    await fixture.whenStable();
+
+    expect(navigate).toHaveBeenCalledWith('/login?reason=registered');
+  });
+
   it('Register: success navigates to /tasks', async () => {
-    store.register.mockResolvedValue();
+    store.register.mockResolvedValue('signed-in');
     const { fixture, el } = setup();
     fill(el);
     fixture.detectChanges();

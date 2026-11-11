@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { AppError } from '../http/app-error';
 import { AuthApi } from './auth-api';
 import { LoginRequest, RegisterRequest, User } from './auth.models';
 
@@ -27,9 +28,19 @@ export class AuthStore {
     this.setSession({ token: res.accessToken, expiresAt: res.expiresAt, user: res.user });
   }
 
-  async register(req: RegisterRequest): Promise<void> {
+  /** Rejects only if the account was not created; resolves 'registered' when the follow-up sign-in fails. */
+  async register(req: RegisterRequest): Promise<'signed-in' | 'registered'> {
     await firstValueFrom(this.api.register(req));
-    await this.login({ email: req.email, password: req.password });
+    try {
+      await this.login({ email: req.email, password: req.password });
+      return 'signed-in';
+    } catch (e) {
+      // HTTP failures arrive as AppError (numeric status) from the error interceptor; anything else is a bug.
+      if (typeof (e as Partial<AppError> | null)?.status === 'number') {
+        return 'registered';
+      }
+      throw e;
+    }
   }
 
   logout(): void {
