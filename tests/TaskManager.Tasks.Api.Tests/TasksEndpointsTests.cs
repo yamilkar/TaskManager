@@ -10,6 +10,7 @@ using TaskManager.Tasks.Application.CreateTask;
 using TaskManager.Tasks.Application.GetTask;
 using TaskManager.Tasks.Application.ListTasks;
 using TaskManager.Tasks.Application.UpdateTask;
+using TaskManager.Tasks.Application.DeleteTask;
 using TaskManager.Tasks.Domain;
 using TaskManager.Testing;
 
@@ -449,5 +450,33 @@ public sealed class TasksEndpointsTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").TryGetProperty("dueDate", out _).ShouldBeTrue();
         await factory.Repository.DidNotReceive().UpdateAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Delete_with_token_passes_sub_and_route_id_and_returns_204()
+    {
+        using var factory = new TasksApiFactory();
+        var userId = Guid.NewGuid();
+        var taskId = Guid.NewGuid();
+        factory.Delete.HandleAsync(Arg.Any<DeleteTaskCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result<Unit>.Success(default));
+
+        var response = await ClientWith(factory, userId).DeleteAsync($"{Url}/{taskId}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await factory.Delete.Received(1).HandleAsync(
+            Arg.Is<DeleteTaskCommand>(c => c.UserId == userId && c.TaskId == taskId), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Delete_missing_task_returns_404_problem()
+    {
+        // Real handler over a substituted repository whose DeleteAsync defaults to false.
+        using var factory = new TasksApiFactory(useRealHandlers: true);
+
+        var response = await ClientWith(factory, Guid.NewGuid()).DeleteAsync($"{Url}/{Guid.NewGuid()}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
     }
 }

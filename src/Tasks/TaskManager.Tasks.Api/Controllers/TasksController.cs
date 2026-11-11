@@ -4,6 +4,7 @@ using TaskManager.ApiCommon;
 using TaskManager.SharedKernel;
 using TaskManager.Tasks.Application;
 using TaskManager.Tasks.Application.CreateTask;
+using TaskManager.Tasks.Application.DeleteTask;
 using TaskManager.Tasks.Application.GetTask;
 using TaskManager.Tasks.Application.ListTasks;
 using TaskManager.Tasks.Application.UpdateTask;
@@ -62,5 +63,15 @@ public sealed class TasksController : ApiControllerBase
         var command = new UpdateTaskCommand(CurrentUserId, id, request.Title, request.Description, request.Status, request.DueDate);
         var result = await handler.HandleAsync(command, ct);
         return result.IsSuccess ? Ok(result.Value) : Problem(result.Error!);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        [FromServices] ICommandHandler<DeleteTaskCommand, Unit> handler,
+        CancellationToken ct)
+    {
+        var result = await handler.HandleAsync(new DeleteTaskCommand(CurrentUserId, id), ct);
+        return result.IsSuccess ? NoContent() : Problem(result.Error!);
     }
 }
