@@ -132,7 +132,7 @@ describe('TasksStore', () => {
   });
 
   it('TasksStore.remove treats 404 as already removed', async () => {
-    const gone: AppError = { status: 404, message: 'Task not found.', fieldErrors: {} };
+    const gone: AppError = { status: 404, message: 'Task not found.', code: 'tasks.not_found', fieldErrors: {} };
     api.list.mockReturnValue(of([mk('a')]));
     api.delete.mockReturnValue(throwError(() => gone));
     const store = setup();
@@ -141,6 +141,17 @@ describe('TasksStore', () => {
     await store.remove('a');
 
     expect(store.tasks()).toEqual([]);
+  });
+
+  it('TasksStore.remove rethrows a 404 that is not task-not-found and keeps the task', async () => {
+    const wrongRoute: AppError = { status: 404, message: 'Not Found', fieldErrors: {} };
+    api.list.mockReturnValue(of([mk('a')]));
+    api.delete.mockReturnValue(throwError(() => wrongRoute));
+    const store = setup();
+    await store.load();
+
+    await expect(store.remove('a')).rejects.toEqual(wrongRoute);
+    expect(store.tasks().map((t) => t.id)).toEqual(['a']);
   });
 
   it('TasksStore.remove rethrows other failures and leaves the list unchanged', async () => {

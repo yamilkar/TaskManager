@@ -42,12 +42,16 @@ export class TasksStore {
     return task;
   }
 
-  /** Deletes the task and drops it from the list. A 404 means it is already gone, so it is dropped too. */
+  /**
+   * Deletes the task and drops it from the list. The API's task-not-found 404 means it is already gone,
+   * so it is dropped too; any other 404 (wrong route, proxy) is rethrown and the task is kept.
+   */
   async remove(id: string): Promise<void> {
     try {
       await firstValueFrom(this.api.delete(id), { defaultValue: undefined });
     } catch (e) {
-      if ((e as AppError).status !== 404) {
+      const err = e as AppError;
+      if (err.status !== 404 || err.code !== 'tasks.not_found') {
         throw e;
       }
     }
