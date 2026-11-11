@@ -25,7 +25,7 @@ public sealed class GitHubOidcStackTests
     }
 
     [Fact]
-    public void Stack_deployRole_trustsOnlyTheProductionEnvironmentOfTheRepository()
+    public void Stack_deployRole_trustsOnlyTheProductionEnvironmentOnTheMainBranch()
     {
         StackFixture.GitHubOidc(ProviderArn).HasResourceProperties("AWS::IAM::Role", new Props
         {
@@ -43,7 +43,13 @@ public sealed class GitHubOidcStackTests
                             ["StringEquals"] = new Props
                             {
                                 ["token.actions.githubusercontent.com:aud"] = "sts.amazonaws.com",
-                                ["token.actions.githubusercontent.com:sub"] = "repo:yamilkar/TaskManager:environment:production",
+                                // Both subject formats GitHub may issue (by name, and immutable by owner/repo id);
+                                // each requires the production environment AND the main branch.
+                                ["token.actions.githubusercontent.com:sub"] = new[]
+                                {
+                                    "repo:yamilkar/TaskManager:environment:production:ref:refs/heads/main",
+                                    "repo:yamilkar@97929231/TaskManager@1451505784:environment:production:ref:refs/heads/main",
+                                },
                             },
                         },
                     }),

@@ -235,8 +235,12 @@ npx --yes aws-cdk@2.1148.1 bootstrap aws://<ACCOUNT_ID>/us-east-1
 #    add: -c githubOidcProviderArn=arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com
 cd infra && npx --yes aws-cdk@2.1148.1 deploy TaskManager-GitHubOidc
 
-# 4. REQUIRED: only main may deploy. The role trusts any job in the `production` environment, and a feature
-#    branch could edit ci.yml, so GitHub itself must refuse that environment to every other branch.
+# 4. REQUIRED: only main may deploy. A feature branch could edit ci.yml, so two settings enforce it outside the code:
+#    a) put the branch into GitHub's OIDC token subject; the deploy role only trusts subjects that end in
+#       environment:production:ref:refs/heads/main, so it refuses every token until this is set (fail closed)
+echo '{"use_default":false,"include_claim_keys":["repo","context","ref"]}' |
+  gh api -X PUT repos/<owner>/TaskManager/actions/oidc/customization/sub --input -
+#    b) let only main use the production environment
 gh api -X PUT repos/<owner>/TaskManager/environments/production --input - <<'JSON'
 { "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true } }
 JSON
@@ -247,7 +251,7 @@ gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn>"
 gh variable set AWS_REGION --body us-east-1
 ```
 
-Check step 4 under Settings → Environments → `production` → Deployment branches: only `main`. Optionally add a required reviewer there to approve each deploy.
+Check step 4: `gh api repos/<owner>/TaskManager/actions/oidc/customization/sub` lists `repo`, `context` and `ref`, and Settings → Environments → `production` → Deployment branches shows only `main`. If the first deploy fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity`, step 4a is missing. Optionally add a required reviewer there to approve each deploy.
 
 Then run the first deploy manually (Actions → CI → Run workflow on `main`), or merge any change: with no successful deployment recorded yet, everything is deployed. After that, merges deploy what changed.
 
