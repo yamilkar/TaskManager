@@ -7,12 +7,7 @@ namespace TaskManager.Tasks.Infrastructure.Persistence;
 
 public static class TaskItemMapper
 {
-    public const string CreatedAtIdAttribute = "createdAtId";
-
     private const string DateFormat = "yyyy-MM-dd";
-
-    public static string CreatedAtId(TaskItem task) =>
-        task.CreatedAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) + "#" + task.Id.ToString("D");
 
     public static Dictionary<string, AttributeValue> ToItem(TaskItem task)
     {
@@ -24,7 +19,6 @@ public static class TaskItemMapper
             ["status"] = task.Status.ToString().ToAttr(),
             ["createdAt"] = task.CreatedAt.ToAttr(),
             ["updatedAt"] = task.UpdatedAt.ToAttr(),
-            [CreatedAtIdAttribute] = CreatedAtId(task).ToAttr(),
         };
 
         if (task.Description is not null)

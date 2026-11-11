@@ -12,7 +12,7 @@ public sealed class TaskSeeder(ITaskRepository repository, IClock clock, IOption
     {
         var userId = options.Value.DemoUserId;
 
-        if ((await repository.ListByUserAsync(userId, 1, null, ct)).Items.Count > 0)
+        if ((await repository.ListByUserAsync(userId, ct)).Count > 0)
         {
             return;
         }

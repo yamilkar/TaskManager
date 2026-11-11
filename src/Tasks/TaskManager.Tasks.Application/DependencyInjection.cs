@@ -11,7 +11,7 @@ public static class DependencyInjection
     public static IServiceCollection AddTasksApplication(this IServiceCollection services)
     {
         services.AddScoped<ICommandHandler<CreateTaskCommand, TaskResponse>, CreateTaskHandler>();
-        services.AddScoped<IQueryHandler<ListTasksQuery, TaskPage>, ListTasksHandler>();
+        services.AddScoped<IQueryHandler<ListTasksQuery, IReadOnlyList<TaskResponse>>, ListTasksHandler>();
         services.AddScoped<IQueryHandler<GetTaskQuery, TaskResponse>, GetTaskHandler>();
         return services;
     }

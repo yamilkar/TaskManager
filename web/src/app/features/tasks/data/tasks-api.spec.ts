@@ -32,22 +32,13 @@ describe('TasksApi', () => {
 
   afterEach(() => ctrl.verify());
 
-  it('list GETs /api/v1/tasks without params by default', () => {
+  it('list GETs /api/v1/tasks on the tasks API', () => {
     let result: unknown;
     api.list().subscribe((r) => (result = r));
     const req = ctrl.expectOne('http://tasks/api/v1/tasks');
     expect(req.request.method).toBe('GET');
-    expect(req.request.params.keys()).toEqual([]);
-    req.flush({ items: [task], nextCursor: null });
-    expect(result).toEqual({ items: [task], nextCursor: null });
-  });
-
-  it('list sends cursor and limit as query params', () => {
-    api.list({ limit: 5, cursor: 'c1' }).subscribe();
-    const req = ctrl.expectOne((r) => r.url === 'http://tasks/api/v1/tasks');
-    expect(req.request.params.get('cursor')).toBe('c1');
-    expect(req.request.params.get('limit')).toBe('5');
-    req.flush({ items: [], nextCursor: null });
+    req.flush([task]);
+    expect(result).toEqual([task]);
   });
 
   it('create POSTs the request body', () => {

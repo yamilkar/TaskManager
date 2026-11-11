@@ -6,10 +6,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="TaskManager.Tasks.Infrastructure.Tests" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="../TaskManager.Tasks.Application/TaskManager.Tasks.Application.csproj" />
     <ProjectReference Include="../../BuildingBlocks/TaskManager.Infrastructure.DynamoDb/TaskManager.Infrastructure.DynamoDb.csproj" />
   </ItemGroup>

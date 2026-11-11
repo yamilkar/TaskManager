@@ -9,7 +9,6 @@ using TaskManager.Tasks.Application;
 using TaskManager.Tasks.Application.CreateTask;
 using TaskManager.Tasks.Application.GetTask;
 using TaskManager.Tasks.Application.ListTasks;
-using TaskManager.Tasks.Application.Ports;
 using TaskManager.Testing;
 
 namespace TaskManager.Tasks.Api.Tests;
@@ -123,80 +122,19 @@ public sealed class TasksEndpointsTests
     }
 
     [Fact]
-    public async Task List_withToken_returnsItemsAndNextCursor()
+    public async Task List_returns_200_with_tasks_for_caller()
     {
         using var factory = new TasksApiFactory();
         var userId = Guid.NewGuid();
-        var page = new TaskPage([Sample(Guid.NewGuid(), "a"), Sample(Guid.NewGuid(), "b")], "c1");
-        factory.List.HandleAsync(new ListTasksQuery(userId, null, null), Arg.Any<CancellationToken>())
-            .Returns(Result<TaskPage>.Success(page));
+        IReadOnlyList<TaskResponse> items = [Sample(Guid.NewGuid(), "a"), Sample(Guid.NewGuid(), "b")];
+        factory.List.HandleAsync(new ListTasksQuery(userId), Arg.Any<CancellationToken>())
+            .Returns(Result<IReadOnlyList<TaskResponse>>.Success(items));
 
         var response = await ClientWith(factory, userId).GetAsync(Url);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.GetProperty("items").GetArrayLength().ShouldBe(2);
-        body.GetProperty("nextCursor").GetString().ShouldBe("c1");
-    }
-
-    [Fact]
-    public async Task List_withLimitAndCursor_passesThemFromQueryAndOwnerFromToken()
-    {
-        using var factory = new TasksApiFactory();
-        var userId = Guid.NewGuid();
-        var other = Guid.NewGuid();
-        factory.List.HandleAsync(Arg.Any<ListTasksQuery>(), Arg.Any<CancellationToken>())
-            .Returns(Result<TaskPage>.Success(new TaskPage([], null)));
-
-        var response = await ClientWith(factory, userId).GetAsync($"{Url}?limit=1&cursor=abc&userId={other}");
-
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        await factory.List.Received(1).HandleAsync(new ListTasksQuery(userId, 1, "abc"), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task List_nonIntegerLimit_returns400WithLimitError()
-    {
-        using var factory = new TasksApiFactory();
-
-        var response = await ClientWith(factory, Guid.NewGuid()).GetAsync($"{Url}?limit=abc");
-
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.GetProperty("errors").TryGetProperty("limit", out _).ShouldBeTrue();
-        await factory.List.DidNotReceiveWithAnyArgs().HandleAsync(default!, default);
-    }
-
-    [Fact]
-    public async Task List_limitOutOfRange_returns400()
-    {
-        using var factory = new TasksApiFactory(useRealHandlers: true);
-
-        var response = await ClientWith(factory, Guid.NewGuid()).GetAsync($"{Url}?limit=500");
-
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.GetProperty("errors").TryGetProperty("limit", out _).ShouldBeTrue();
-        await factory.Repository.DidNotReceiveWithAnyArgs().ListByUserAsync(default, default, default, default);
-    }
-
-    [Fact]
-    public async Task List_invalidCursor_returns400()
-    {
-        // The substituted repository does not validate cursors itself, so it is stubbed to reject this
-        // one the way DynamoDbTaskRepository does; the 400 must then come from the handler's cursor mapping.
-        using var factory = new TasksApiFactory(useRealHandlers: true);
-        var cursor = new string('a', 2000);
-        factory.Repository.ListByUserAsync(Arg.Any<Guid>(), Arg.Any<int>(), cursor, Arg.Any<CancellationToken>())
-            .Returns<Task<TaskPageResult>>(_ => throw new InvalidCursorException("too long"));
-
-        var response = await ClientWith(factory, Guid.NewGuid()).GetAsync($"{Url}?cursor={cursor}");
-
-        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.GetProperty("errors").TryGetProperty("cursor", out _).ShouldBeTrue();
-        await factory.Repository.Received(1).ListByUserAsync(
-            Arg.Any<Guid>(), Arg.Any<int>(), cursor, Arg.Any<CancellationToken>());
+        body.GetArrayLength().ShouldBe(2);
     }
 
     [Fact]

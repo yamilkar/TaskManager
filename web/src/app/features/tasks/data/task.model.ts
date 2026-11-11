@@ -16,8 +16,3 @@ export interface CreateTaskRequest {
   status?: TaskStatus;
   dueDate?: string | null;
 }
-
-export interface TaskPage {
-  items: Task[];
-  nextCursor: string | null;
-}

@@ -1,6 +1,4 @@
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
-using TaskManager.SharedKernel;
 using TaskManager.Tasks.Application.GetTask;
 using TaskManager.Tasks.Application.ListTasks;
 using TaskManager.Tasks.Application.Ports;
@@ -15,58 +13,29 @@ public class TaskQueryHandlerTests
     private readonly Guid _userId = Guid.NewGuid();
 
     [Fact]
-    public async Task ListTasks_HandleAsync_noLimit_requestsDefault20AndMapsPage()
+    public async Task ListTasks_HandleAsync_multipleTasks_returnsNewestFirst()
     {
-        var task = TaskItem.Rehydrate(Guid.NewGuid(), _userId, "t", null, TaskItemStatus.Done, null, Now, Now);
-        _repo.ListByUserAsync(_userId, 20, null, Arg.Any<CancellationToken>())
-            .Returns(new TaskPageResult([task], "next"));
+        var older = TaskItem.Rehydrate(Guid.NewGuid(), _userId, "old", null, TaskItemStatus.ToDo, null, Now.AddDays(-2), Now.AddDays(-2));
+        var newer = TaskItem.Rehydrate(Guid.NewGuid(), _userId, "new", null, TaskItemStatus.Done, null, Now.AddDays(-1), Now.AddDays(-1));
+        _repo.ListByUserAsync(_userId, Arg.Any<CancellationToken>()).Returns([older, newer]);
 
-        var result = await new ListTasksHandler(_repo).HandleAsync(new ListTasksQuery(_userId, null, null), default);
+        var result = await new ListTasksHandler(_repo).HandleAsync(new ListTasksQuery(_userId), default);
 
-        Assert.Equal(task.Id, result.Value.Items.Single().Id);
-        Assert.Equal("Done", result.Value.Items.Single().Status);
-        Assert.Equal("next", result.Value.NextCursor);
-    }
-
-    [Theory]
-    [InlineData(1)]
-    [InlineData(100)]
-    public async Task ListTasks_HandleAsync_boundaryLimit_passesItThrough(int limit)
-    {
-        _repo.ListByUserAsync(_userId, limit, "c", Arg.Any<CancellationToken>())
-            .Returns(new TaskPageResult([], null));
-
-        var result = await new ListTasksHandler(_repo).HandleAsync(new ListTasksQuery(_userId, limit, "c"), default);
-
-        Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value.Items);
-        Assert.Null(result.Value.NextCursor);
-        await _repo.Received(1).ListByUserAsync(_userId, limit, "c", Arg.Any<CancellationToken>());
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(101)]
-    [InlineData(-1)]
-    public async Task ListTasks_HandleAsync_outOfRangeLimit_returnsLimitFieldErrorWithoutQuerying(int limit)
-    {
-        var result = await new ListTasksHandler(_repo).HandleAsync(new ListTasksQuery(_userId, limit, null), default);
-
-        Assert.Equal(ErrorType.Validation, result.Error!.Type);
-        Assert.Equal(["Limit must be between 1 and 100."], result.Error.FieldErrors!["limit"]);
-        await _repo.DidNotReceiveWithAnyArgs().ListByUserAsync(default, default, default, default);
+        Assert.Equal(["new", "old"], result.Value.Select(t => t.Title));
+        Assert.Equal("Done", result.Value[0].Status);
     }
 
     [Fact]
-    public async Task ListTasks_HandleAsync_repositoryRejectsCursor_returnsCursorFieldError()
+    public async Task ListTasks_HandleAsync_sameCreatedAt_ordersByIdDescending()
     {
-        _repo.ListByUserAsync(_userId, 20, "bad", Arg.Any<CancellationToken>())
-            .ThrowsAsync(new InvalidCursorException("bad"));
+        // The repository returns items in key order, so without a tie-break the list order could change between sign-ins.
+        var low = TaskItem.Rehydrate(Guid.Parse("00000000-0000-0000-0000-000000000001"), _userId, "low", null, TaskItemStatus.ToDo, null, Now, Now);
+        var high = TaskItem.Rehydrate(Guid.Parse("00000000-0000-0000-0000-000000000002"), _userId, "high", null, TaskItemStatus.ToDo, null, Now, Now);
+        _repo.ListByUserAsync(_userId, Arg.Any<CancellationToken>()).Returns([low, high]);
 
-        var result = await new ListTasksHandler(_repo).HandleAsync(new ListTasksQuery(_userId, null, "bad"), default);
+        var result = await new ListTasksHandler(_repo).HandleAsync(new ListTasksQuery(_userId), default);
 
-        Assert.Equal(ErrorType.Validation, result.Error!.Type);
-        Assert.Equal(["Cursor is invalid."], result.Error.FieldErrors!["cursor"]);
+        Assert.Equal(["high", "low"], result.Value.Select(t => t.Title));
     }
 
     [Fact]

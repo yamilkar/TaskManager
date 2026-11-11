@@ -29,8 +29,8 @@ public sealed class TasksApiFactory(string signingKey = TasksApiFactory.DefaultK
     public ICommandHandler<CreateTaskCommand, TaskResponse> Create { get; } =
         Substitute.For<ICommandHandler<CreateTaskCommand, TaskResponse>>();
 
-    public IQueryHandler<ListTasksQuery, TaskPage> List { get; } =
-        Substitute.For<IQueryHandler<ListTasksQuery, TaskPage>>();
+    public IQueryHandler<ListTasksQuery, IReadOnlyList<TaskResponse>> List { get; } =
+        Substitute.For<IQueryHandler<ListTasksQuery, IReadOnlyList<TaskResponse>>>();
 
     public IQueryHandler<GetTaskQuery, TaskResponse> Get { get; } =
         Substitute.For<IQueryHandler<GetTaskQuery, TaskResponse>>();

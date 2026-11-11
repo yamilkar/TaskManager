@@ -24,24 +24,30 @@ public sealed class DynamoDbTaskRepository(IAmazonDynamoDB db, IOptions<DynamoDb
             ct);
     }
 
-    public async Task<TaskPageResult> ListByUserAsync(Guid userId, int limit, string? cursor, CancellationToken ct)
+    public async Task<IReadOnlyList<TaskItem>> ListByUserAsync(Guid userId, CancellationToken ct)
     {
-        var response = await db.QueryAsync(
-            new QueryRequest
-            {
-                TableName = Table,
-                IndexName = TasksTableDefinition.ByCreatedAtIndex,
-                ConsistentRead = true,
-                ScanIndexForward = false,
-                Limit = limit,
-                KeyConditionExpression = "userId = :u",
-                ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":u"] = userId.ToAttr() },
-                ExclusiveStartKey = cursor is null ? null : TaskCursor.Decode(cursor, userId),
-            },
-            ct);
+        var tasks = new List<TaskItem>();
+        Dictionary<string, AttributeValue>? startKey = null;
 
-        var nextCursor = response.LastEvaluatedKey is { Count: > 0 } ? TaskCursor.Encode(response.LastEvaluatedKey) : null;
-        return new TaskPageResult(response.Items.Select(TaskItemMapper.FromItem).ToList(), nextCursor);
+        do
+        {
+            var response = await db.QueryAsync(
+                new QueryRequest
+                {
+                    TableName = Table,
+                    ConsistentRead = true,
+                    KeyConditionExpression = "userId = :u",
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":u"] = userId.ToAttr() },
+                    ExclusiveStartKey = startKey,
+                },
+                ct);
+
+            tasks.AddRange(response.Items.Select(TaskItemMapper.FromItem));
+            startKey = response.LastEvaluatedKey is { Count: > 0 } ? response.LastEvaluatedKey : null;
+        }
+        while (startKey is not null);
+
+        return tasks;
     }
 
     public async Task<TaskItem?> GetAsync(Guid userId, Guid taskId, CancellationToken ct)
