@@ -10,6 +10,11 @@ namespace TaskManager.ApiCommon;
 /// (CloudFront, an ALB). The header is trusted only when the TCP peer is a configured proxy:
 /// <c>ForwardedHeaders:KnownProxies</c> (IP addresses) or <c>ForwardedHeaders:KnownNetworks</c> (CIDR ranges).
 /// With neither configured the middleware is not added, so clients cannot spoof their IP.
+/// <para>
+/// Deployed topology (AWS): browser → Lambda Function URL, with no proxy in between, so leave this section unset;
+/// the Lambda adapter sets the client IP from the request's <c>sourceIp</c>. <c>ForwardLimit = 1</c> supports exactly
+/// one trusted proxy hop; a chain such as CloudFront → ALB is not a supported topology.
+/// </para>
 /// </summary>
 public static class ForwardedHeadersSetup
 {
@@ -32,12 +37,22 @@ public static class ForwardedHeadersSetup
 
         foreach (var proxy in proxies)
         {
-            options.KnownProxies.Add(IPAddress.Parse(proxy));
+            if (!IPAddress.TryParse(proxy, out var address))
+            {
+                throw new InvalidOperationException($"{SectionName}:KnownProxies contains an invalid IP address: '{proxy}'.");
+            }
+
+            options.KnownProxies.Add(address);
         }
 
         foreach (var network in networks)
         {
-            options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+            if (!System.Net.IPNetwork.TryParse(network, out var range))
+            {
+                throw new InvalidOperationException($"{SectionName}:KnownNetworks contains an invalid CIDR range: '{network}'.");
+            }
+
+            options.KnownIPNetworks.Add(range);
         }
 
         return proxies.Length > 0 || networks.Length > 0;
