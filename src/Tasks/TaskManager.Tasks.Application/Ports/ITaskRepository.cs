@@ -9,4 +9,7 @@ public interface ITaskRepository
     Task<IReadOnlyList<TaskItem>> ListByUserAsync(Guid userId, CancellationToken ct);
 
     Task<TaskItem?> GetAsync(Guid userId, Guid taskId, CancellationToken ct);
+
+    /// <summary>Replaces the stored task. Returns <c>false</c>, writing nothing, when it no longer exists.</summary>
+    Task<bool> UpdateAsync(TaskItem task, CancellationToken ct);
 }
