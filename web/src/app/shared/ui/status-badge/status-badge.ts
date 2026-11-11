@@ -7,20 +7,21 @@ import { STATUS_LABELS, TaskStatus } from '../../../features/tasks/data/task.mod
   styles: `
     .badge {
       display: inline-block;
-      padding: 2px 10px;
+      padding: 3px 10px;
       border-radius: 999px;
-      font: var(--mat-sys-label-medium);
+      font-size: 12px;
+      font-weight: 600;
       white-space: nowrap;
-      background: var(--mat-sys-surface-container-highest);
-      color: var(--mat-sys-on-surface-variant);
+      background: var(--tm-todo-badge-bg);
+      color: var(--tm-todo-badge-fg);
     }
     .status-inprogress {
-      background: var(--mat-sys-secondary-container);
-      color: var(--mat-sys-on-secondary-container);
+      background: var(--tm-prog-badge-bg);
+      color: var(--tm-prog-badge-fg);
     }
     .status-done {
-      background: var(--mat-sys-tertiary-container);
-      color: var(--mat-sys-on-tertiary-container);
+      background: var(--tm-done-badge-bg);
+      color: var(--tm-done-badge-fg);
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

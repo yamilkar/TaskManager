@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { ThemeStore } from './core/theme/theme-store';
 
 @Component({
   imports: [RouterOutlet],
@@ -8,4 +9,9 @@ import { RouterOutlet } from '@angular/router';
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class App {}
+export class App {
+  constructor() {
+    // Applies the remembered (or system) theme before the first screen renders.
+    inject(ThemeStore);
+  }
+}

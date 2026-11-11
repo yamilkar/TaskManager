@@ -1,14 +1,25 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Injector,
+  OnInit,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AppError } from '../../../core/http/app-error';
-import { STATUS_LABELS, Task, TaskStatus, UpdateTaskRequest } from '../data/task.model';
+import { STATUS_LABELS, TASK_STATUSES, Task, TaskStatus, UpdateTaskRequest } from '../data/task.model';
 import { TasksStore } from '../data/tasks-store';
 import { TaskForm } from '../task-form/task-form';
 import { TaskList } from '../task-list/task-list';
 
 @Component({
   selector: 'app-tasks-page',
-  imports: [TaskForm, TaskList],
+  imports: [CdkTrapFocus, TaskForm, TaskList],
   providers: [TasksStore],
   templateUrl: './tasks-page.html',
   styleUrl: './tasks-page.scss',
@@ -18,6 +29,22 @@ export class TasksPage implements OnInit {
   protected readonly store = inject(TasksStore);
   private readonly snackBar = inject(MatSnackBar);
   private readonly form = viewChild(TaskForm);
+  private readonly injector = inject(Injector);
+
+  protected readonly statuses = TASK_STATUSES;
+  protected readonly labels = STATUS_LABELS;
+  protected readonly counts = computed(() => {
+    const counts: Record<TaskStatus, number> = { ToDo: 0, InProgress: 0, Done: 0 };
+    for (const task of this.store.tasks()) {
+      counts[task.status]++;
+    }
+    return counts;
+  });
+
+  /** The add or edit form is shown in a dialog; it is created on open, so it always starts fresh. */
+  protected readonly dialogOpen = signal(false);
+  /** Where focus goes back to when the dialog closes. */
+  private returnFocusTo: HTMLElement | null = null;
 
   /** The task loaded into the form; null means the form adds a new task. */
   protected readonly editing = signal<Task | null>(null);
@@ -31,14 +58,33 @@ export class TasksPage implements OnInit {
     void this.store.load();
   }
 
-  protected onEdit(task: Task): void {
-    this.clearErrors();
-    this.editing.set(task);
+  protected openAdd(): void {
+    this.open(null);
+    afterNextRender(() => this.form()?.focusTitle(), { injector: this.injector });
   }
 
-  protected onCancelEdit(): void {
+  /** The form focuses its title itself when it receives a task. */
+  protected onEdit(task: Task): void {
+    this.open(task);
+  }
+
+  protected closeDialog(): void {
+    if (this.submitting()) {
+      return;
+    }
     this.clearErrors();
     this.editing.set(null);
+    this.dialogOpen.set(false);
+    const target = this.returnFocusTo;
+    this.returnFocusTo = null;
+    afterNextRender(() => target?.focus(), { injector: this.injector });
+  }
+
+  private open(task: Task | null): void {
+    this.clearErrors();
+    this.returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.editing.set(task);
+    this.dialogOpen.set(true);
   }
 
   protected async onSubmitted(req: UpdateTaskRequest): Promise<void> {
@@ -48,13 +94,13 @@ export class TasksPage implements OnInit {
     try {
       if (editing) {
         await this.store.update(editing.id, req);
-        this.editing.set(null);
         this.snackBar.open('Task updated', undefined, { duration: 3000 });
       } else {
         await this.store.create(req);
-        this.form()?.reset();
         this.snackBar.open('Task created', undefined, { duration: 3000 });
       }
+      this.submitting.set(false);
+      this.closeDialog();
     } catch (e) {
       const err = e as AppError;
       const fieldErrors = err.fieldErrors ?? {};

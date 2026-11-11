@@ -1,0 +1,31 @@
+<section class="hero">
+  <div class="top">
+    <app-brand-logo />
+    <app-theme-toggle />
+  </div>
+
+  <div class="pitch">
+    <h1>Your tasks, <span class="tm-grad">from To do to Done.</span></h1>
+    <p>Add tasks with a description and a due date, then move them across To do, In progress and Done.</p>
+  </div>
+
+  <div class="preview" aria-hidden="true">
+    <div class="col todo">
+      <span class="col-title">To do</span>
+      <span class="card">Review sprint backlog</span>
+      <span class="card">Write project notes</span>
+    </div>
+    <div class="col prog">
+      <span class="col-title">In progress</span>
+      <span class="card">Explore the Task Manager</span>
+    </div>
+    <div class="col done">
+      <span class="col-title">Done</span>
+      <span class="card">Set up local environment</span>
+    </div>
+  </div>
+</section>
+
+<main class="panel">
+  <ng-content />
+</main>

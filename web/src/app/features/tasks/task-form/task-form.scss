@@ -1,12 +1,39 @@
+.task-card.mat-mdc-card {
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--tm-surface);
+}
+
+// The title sits on a purple band, like the page header.
+.mat-mdc-card-header {
+  padding: 18px 64px 18px 24px;
+  background: var(--tm-hero);
+}
+
+.mat-mdc-card-title {
+  margin: 0;
+  color: #ffffff;
+  font-family: 'Space Grotesk', Inter, sans-serif;
+  font-size: 21px;
+  font-weight: 600;
+}
+
+.mat-mdc-card-content {
+  padding: 0 24px 20px;
+}
+
 form {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-top: 16px;
+  padding-top: 20px;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
+  padding-top: 8px;
 }

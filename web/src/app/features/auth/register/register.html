@@ -1,72 +1,74 @@
-<mat-card class="auth-card" appearance="outlined">
-  <mat-card-header>
-    <mat-card-title>Create account</mat-card-title>
-  </mat-card-header>
-  <mat-card-content>
-    @if (errorMessage(); as message) {
-      <p class="alert" role="alert">{{ message }}</p>
-    }
+<app-auth-layout>
+  <mat-card class="auth-card" appearance="outlined">
+    <mat-card-header>
+      <mat-card-title>Create account</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      @if (errorMessage(); as message) {
+        <p class="alert" role="alert">{{ message }}</p>
+      }
 
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <mat-form-field appearance="outline">
-        <mat-label>Full name</mat-label>
-        <input matInput name="fullName" formControlName="fullName" autocomplete="name" />
-        @if (form.controls.fullName.hasError('required')) {
-          <mat-error>Full name is required.</mat-error>
-        } @else if (form.controls.fullName.hasError('maxlength')) {
-          <mat-error>Full name must be at most 100 characters.</mat-error>
-        }
-        <app-form-error matError [errors]="form.controls.fullName.errors?.['server']" />
-      </mat-form-field>
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <mat-form-field appearance="outline">
+          <mat-label>Full name</mat-label>
+          <input matInput name="fullName" formControlName="fullName" autocomplete="name" />
+          @if (form.controls.fullName.hasError('required')) {
+            <mat-error>Full name is required.</mat-error>
+          } @else if (form.controls.fullName.hasError('maxlength')) {
+            <mat-error>Full name must be at most 100 characters.</mat-error>
+          }
+          <app-form-error matError [errors]="form.controls.fullName.errors?.['server']" />
+        </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Email</mat-label>
-        <input matInput type="email" name="email" formControlName="email" autocomplete="username" />
-        @if (form.controls.email.hasError('required')) {
-          <mat-error>Email is required.</mat-error>
-        } @else if (form.controls.email.hasError('email')) {
-          <mat-error>Enter a valid email address.</mat-error>
-        } @else if (form.controls.email.hasError('maxlength')) {
-          <mat-error>Email must be at most 254 characters.</mat-error>
-        }
-        <app-form-error matError [errors]="form.controls.email.errors?.['server']" />
-      </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" name="email" formControlName="email" autocomplete="username" />
+          @if (form.controls.email.hasError('required')) {
+            <mat-error>Email is required.</mat-error>
+          } @else if (form.controls.email.hasError('email')) {
+            <mat-error>Enter a valid email address.</mat-error>
+          } @else if (form.controls.email.hasError('maxlength')) {
+            <mat-error>Email must be at most 254 characters.</mat-error>
+          }
+          <app-form-error matError [errors]="form.controls.email.errors?.['server']" />
+        </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Password</mat-label>
-        <input matInput type="password" name="password" formControlName="password" autocomplete="new-password" />
-        <mat-hint>At least 8 characters, with a letter and a digit.</mat-hint>
-        @if (form.controls.password.hasError('required')) {
-          <mat-error>Password is required.</mat-error>
-        } @else if (form.controls.password.hasError('minlength')) {
-          <mat-error>Password must be at least 8 characters.</mat-error>
-        } @else if (form.controls.password.hasError('maxlength')) {
-          <mat-error>Password must be at most 128 characters.</mat-error>
-        } @else if (form.controls.password.hasError('pattern')) {
-          <mat-error>Password must contain at least one letter and one digit.</mat-error>
-        }
-        <app-form-error matError [errors]="form.controls.password.errors?.['server']" />
-      </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" name="password" formControlName="password" autocomplete="new-password" />
+          <mat-hint>At least 8 characters, with a letter and a digit.</mat-hint>
+          @if (form.controls.password.hasError('required')) {
+            <mat-error>Password is required.</mat-error>
+          } @else if (form.controls.password.hasError('minlength')) {
+            <mat-error>Password must be at least 8 characters.</mat-error>
+          } @else if (form.controls.password.hasError('maxlength')) {
+            <mat-error>Password must be at most 128 characters.</mat-error>
+          } @else if (form.controls.password.hasError('pattern')) {
+            <mat-error>Password must contain at least one letter and one digit.</mat-error>
+          }
+          <app-form-error matError [errors]="form.controls.password.errors?.['server']" />
+        </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Confirm password</mat-label>
-        <input
-          matInput
-          type="password"
-          name="confirmPassword"
-          formControlName="confirmPassword"
-          autocomplete="new-password"
-        />
-        @if (form.controls.confirmPassword.hasError('required')) {
-          <mat-error>Please confirm your password.</mat-error>
-        } @else if (form.controls.confirmPassword.hasError('mismatch')) {
-          <mat-error>Passwords do not match.</mat-error>
-        }
-      </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Confirm password</mat-label>
+          <input
+            matInput
+            type="password"
+            name="confirmPassword"
+            formControlName="confirmPassword"
+            autocomplete="new-password"
+          />
+          @if (form.controls.confirmPassword.hasError('required')) {
+            <mat-error>Please confirm your password.</mat-error>
+          } @else if (form.controls.confirmPassword.hasError('mismatch')) {
+            <mat-error>Passwords do not match.</mat-error>
+          }
+        </mat-form-field>
 
-      <button matButton="filled" type="submit" [disabled]="submitting()">Create account</button>
-    </form>
+        <button matButton="filled" class="tm-primary" type="submit" [disabled]="submitting()">Create account</button>
+      </form>
 
-    <p class="switch">Already have an account? <a routerLink="/login">Sign in</a></p>
-  </mat-card-content>
-</mat-card>
+      <p class="switch">Already have an account? <a routerLink="/login">Sign in</a></p>
+    </mat-card-content>
+  </mat-card>
+</app-auth-layout>

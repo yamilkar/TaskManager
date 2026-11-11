@@ -1,6 +1,6 @@
-<mat-card appearance="outlined">
+<mat-card class="task-card" appearance="outlined">
   <mat-card-header>
-    <mat-card-title>{{ task() ? 'Edit task' : 'Add a task' }}</mat-card-title>
+    <mat-card-title id="task-form-title">{{ task() ? 'Edit task' : 'Add a task' }}</mat-card-title>
   </mat-card-header>
   <mat-card-content>
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -45,12 +45,12 @@
       </mat-form-field>
 
       <div class="actions">
-        <button matButton="filled" type="submit" [disabled]="submitting()">
-          {{ task() ? 'Save changes' : 'Add task' }}
-        </button>
-        @if (task()) {
+        @if (task() || cancellable()) {
           <button matButton type="button" [disabled]="submitting()" (click)="cancelled.emit()">Cancel</button>
         }
+        <button matButton="filled" class="tm-primary" type="submit" [disabled]="submitting()">
+          {{ task() ? 'Save changes' : 'Add task' }}
+        </button>
       </div>
     </form>
   </mat-card-content>

@@ -49,6 +49,58 @@ describe('TaskList', () => {
     expect(el.textContent).not.toContain('No tasks yet');
   });
 
+  describe('board', () => {
+    const column = (el: HTMLElement, label: string) => el.querySelector<HTMLElement>(`section[aria-label="${label}"]`)!;
+    const titlesIn = (col: HTMLElement) => Array.from(col.querySelectorAll('li .title')).map((t) => t.textContent!.trim());
+
+    it('TaskList_tasks_areGroupedIntoStatusColumnsInOrder', () => {
+      const el = setup([
+        mk({ id: '1', title: 'A', status: 'Done' }),
+        mk({ id: '2', title: 'B', status: 'ToDo' }),
+        mk({ id: '3', title: 'C', status: 'InProgress' }),
+        mk({ id: '4', title: 'D', status: 'ToDo' }),
+      ]);
+
+      const labels = Array.from(el.querySelectorAll('section')).map((s) => s.getAttribute('aria-label'));
+      expect(labels).toEqual(['To do', 'In progress', 'Done']);
+      expect(titlesIn(column(el, 'To do'))).toEqual(['B', 'D']);
+      expect(titlesIn(column(el, 'In progress'))).toEqual(['C']);
+      expect(titlesIn(column(el, 'Done'))).toEqual(['A']);
+    });
+
+    it('TaskList_columns_showHowManyTasksTheyHold', () => {
+      const el = setup([mk({ id: '1', status: 'ToDo' }), mk({ id: '2', status: 'ToDo' })]);
+
+      expect(column(el, 'To do').querySelector('.count')!.textContent!.trim()).toBe('2');
+      expect(column(el, 'Done').querySelector('.count')!.textContent!.trim()).toBe('0');
+    });
+
+    it('TaskList_emptyColumnWhileOthersHaveTasks_saysNoTasks', () => {
+      const el = setup([mk({ id: '1', status: 'ToDo' })]);
+
+      expect(column(el, 'Done').textContent).toContain('No tasks');
+      expect(column(el, 'Done').textContent).not.toContain('add your first one');
+    });
+
+    it('TaskList_statusTab_choosesTheColumnShownOnPhones', () => {
+      const fixture = setupFixture([mk({ id: '1', status: 'ToDo' })]);
+      const el = fixture.nativeElement as HTMLElement;
+      const tab = (label: string) =>
+        Array.from(el.querySelectorAll<HTMLButtonElement>('[role=tab]')).find((t) => t.textContent!.includes(label))!;
+
+      expect(tab('To do').getAttribute('aria-selected')).toBe('true');
+      expect(column(el, 'To do').classList).toContain('active');
+
+      tab('Done').click();
+      fixture.detectChanges();
+
+      expect(tab('Done').getAttribute('aria-selected')).toBe('true');
+      expect(tab('To do').getAttribute('aria-selected')).toBe('false');
+      expect(column(el, 'Done').classList).toContain('active');
+      expect(column(el, 'To do').classList).not.toContain('active');
+    });
+  });
+
   it('TaskList: each row has an Edit button labelled with the task title', () => {
     const task = mk({ id: '1', title: 'Buy milk' });
     const fixture = setupFixture([task]);

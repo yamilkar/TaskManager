@@ -52,6 +52,13 @@ describe('TasksPage', () => {
     input.dispatchEvent(new Event('input'));
   }
 
+  const dialog = (el: HTMLElement) => el.querySelector<HTMLElement>('[role=dialog]');
+
+  async function openAdd(fixture: { whenStable(): Promise<unknown>; detectChanges(): void }, el: HTMLElement) {
+    el.querySelector<HTMLButtonElement>('button.add-task')!.click();
+    await settle(fixture);
+  }
+
   afterEach(() => ctrl.verify());
 
   it('TasksPage: loads tasks on init', async () => {
@@ -67,6 +74,7 @@ describe('TasksPage', () => {
     ctrl.expectOne(URL).flush([mk('1', 'Existing')]);
     await settle(fixture);
 
+    await openAdd(fixture, el);
     type(el, 'Brand new');
     el.querySelector<HTMLButtonElement>('button[type=submit]')!.click();
     const req = ctrl.expectOne((r) => r.method === 'POST' && r.url === URL);
@@ -77,6 +85,8 @@ describe('TasksPage', () => {
     const titles = Array.from(el.querySelectorAll('li')).map((li) => li.textContent);
     expect(titles[0]).toContain('Brand new');
     expect(titles[1]).toContain('Existing');
+    expect(dialog(el)).toBeNull();
+    await openAdd(fixture, el);
     expect(el.querySelector<HTMLInputElement>('input[name=title]')!.value).toBe('');
     // MatSnackBar renders in the overlay container, outside the fixture; works without provideAnimationsAsync.
     expect(document.body.textContent).toContain('Task created');
@@ -87,6 +97,7 @@ describe('TasksPage', () => {
     ctrl.expectOne(URL).flush([mk('1', 'Existing')]);
     await settle(fixture);
 
+    await openAdd(fixture, el);
     type(el, 'x');
     el.querySelector<HTMLButtonElement>('button[type=submit]')!.click();
     ctrl
@@ -95,7 +106,7 @@ describe('TasksPage', () => {
     await settle(fixture);
     fixture.detectChanges();
 
-    expect(el.textContent).toContain('Title is invalid.');
+    expect(dialog(el)!.textContent).toContain('Title is invalid.');
     expect(el.querySelectorAll('li').length).toBe(1);
   });
   describe('editing', () => {
@@ -134,8 +145,7 @@ describe('TasksPage', () => {
       expect(list[0]).toContain('First');
       expect(list[1]).toContain('New');
       expect(document.body.textContent).toContain('Task updated');
-      expect(heading(el)).toBe('Add a task');
-      expect(el.querySelector<HTMLInputElement>('input[name=title]')!.value).toBe('');
+      expect(dialog(el)).toBeNull();
     });
 
     it('TasksPage: failed save stays in edit mode with field errors', async () => {
@@ -166,9 +176,11 @@ describe('TasksPage', () => {
       button(el, 'Cancel').click();
       await settle(fixture);
 
-      expect(heading(el)).toBe('Add a task');
-      expect(el.querySelector<HTMLInputElement>('input[name=title]')!.value).toBe('');
+      expect(dialog(el)).toBeNull();
       expect(rows(el)[0]).toContain('Second');
+      click(el, 'Edit Second');
+      await settle(fixture);
+      expect(el.querySelector<HTMLInputElement>('input[name=title]')!.value).toBe('Second');
     });
 
     it('TasksPage: move menu changes status', async () => {
@@ -250,6 +262,7 @@ describe('TasksPage', () => {
 
     it('TasksPage: row actions are disabled while a create is pending', async () => {
       const { fixture, el } = await loaded();
+      await openAdd(fixture, el);
       type(el, 'Brand new');
       el.querySelector<HTMLButtonElement>('button[type=submit]')!.click();
       fixture.detectChanges();
@@ -278,6 +291,78 @@ describe('TasksPage', () => {
       await settle(fixture);
       await settle(fixture);
       expect(disabled(el, 'Edit First')).toBe(false);
+    });
+  });
+
+  describe('add task dialog', () => {
+    async function loaded(tasks: Task[] = []) {
+      const ctx = setup();
+      ctrl.expectOne(URL).flush(tasks);
+      await settle(ctx.fixture);
+      return ctx;
+    }
+    const button = (el: HTMLElement, text: string) =>
+      Array.from(el.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent!.trim() === text)!;
+
+    it('TasksPage_beforeAddTask_showsNoForm', async () => {
+      const { el } = await loaded();
+
+      expect(dialog(el)).toBeNull();
+      expect(el.querySelector('input[name=title]')).toBeNull();
+    });
+
+    it('TasksPage_addTask_opensAnEmptyAddATaskDialog', async () => {
+      const { fixture, el } = await loaded();
+
+      await openAdd(fixture, el);
+
+      expect(dialog(el)!.getAttribute('aria-modal')).toBe('true');
+      expect(dialog(el)!.querySelector('mat-card-title')!.textContent!.trim()).toBe('Add a task');
+      expect(el.querySelector<HTMLInputElement>('input[name=title]')!.value).toBe('');
+    });
+
+    it('TasksPage_cancelInAddMode_closesAndDiscardsTheDraft', async () => {
+      const { fixture, el } = await loaded();
+      await openAdd(fixture, el);
+      type(el, 'Draft');
+
+      button(el, 'Cancel').click();
+      await settle(fixture);
+      expect(dialog(el)).toBeNull();
+
+      await openAdd(fixture, el);
+      expect(el.querySelector<HTMLInputElement>('input[name=title]')!.value).toBe('');
+    });
+
+    it('TasksPage_escape_closesTheDialog', async () => {
+      const { fixture, el } = await loaded();
+      await openAdd(fixture, el);
+
+      dialog(el)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await settle(fixture);
+
+      expect(dialog(el)).toBeNull();
+    });
+
+    it('TasksPage_closeButton_closesTheDialog', async () => {
+      const { fixture, el } = await loaded();
+      await openAdd(fixture, el);
+
+      el.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click();
+      await settle(fixture);
+
+      expect(dialog(el)).toBeNull();
+    });
+
+    it('TasksPage_heading_countsTasksPerStatus', async () => {
+      const { el } = await loaded([mk('a', 'A'), mk('b', 'B'), { ...mk('c', 'C'), status: 'Done' }]);
+      const chip = (label: string) =>
+        Array.from(el.querySelectorAll('.summary .chip')).find((li) => li.textContent!.includes(label))!.textContent!;
+
+      expect(el.querySelector('h1')!.textContent!.trim()).toBe('Tasks');
+      expect(chip('To do')).toContain('2');
+      expect(chip('In progress')).toContain('0');
+      expect(chip('Done')).toContain('1');
     });
   });
 
