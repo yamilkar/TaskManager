@@ -1,11 +1,25 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { FormError } from '../../../shared/ui/form-error/form-error';
-import { CreateTaskRequest, TaskStatus } from '../data/task.model';
+import { Task, TaskStatus, UpdateTaskRequest } from '../data/task.model';
 
 function notBlank(control: AbstractControl): ValidationErrors | null {
   return typeof control.value === 'string' && control.value.trim() === '' ? { required: true } : null;
@@ -43,20 +57,45 @@ function notBeforeLocalToday(control: AbstractControl): ValidationErrors | null 
 })
 export class TaskForm {
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly injector = inject(Injector);
+  private readonly titleInput = viewChild.required<ElementRef<HTMLInputElement>>('titleInput');
 
+  /** The task being edited; null means the form adds a new task. */
+  readonly task = input<Task | null>(null);
   readonly submitting = input(false);
   readonly serverErrors = input<Record<string, string[]>>({});
-  readonly submitted = output<CreateTaskRequest>();
+  readonly submitted = output<UpdateTaskRequest>();
+  readonly cancelled = output<void>();
 
   protected readonly today = signal(localToday());
   protected readonly form = inject(FormBuilder).nonNullable.group({
     title: ['', [Validators.required, notBlank, Validators.maxLength(200)]],
     description: ['', [Validators.maxLength(2000)]],
     status: ['ToDo' as TaskStatus],
-    dueDate: ['', [notBeforeLocalToday]],
+    // Spec D24: the edited task's own due date stays valid even once it is in the past.
+    dueDate: ['', [(c: AbstractControl) => (c.value === this.task()?.dueDate ? null : notBeforeLocalToday(c))]],
   });
 
   constructor() {
+    effect(() => {
+      const task = this.task();
+      untracked(() => {
+        if (task) {
+          this.form.reset({
+            title: task.title,
+            description: task.description ?? '',
+            status: task.status,
+            dueDate: task.dueDate ?? '',
+          });
+          this.today.set(localToday());
+          this.cdr.markForCheck();
+          afterNextRender(() => this.titleInput().nativeElement.focus(), { injector: this.injector });
+        } else {
+          this.reset();
+        }
+      });
+    });
+
     effect(() => {
       const controls: Record<string, AbstractControl> = { ...this.form.controls };
       for (const [field, messages] of Object.entries(this.serverErrors())) {
@@ -70,7 +109,7 @@ export class TaskForm {
     });
   }
 
-  /** Called by the parent after a successful create. */
+  /** Empties the form; also used by the parent after a successful create. */
   reset(): void {
     this.form.reset({ title: '', description: '', status: 'ToDo', dueDate: '' });
     this.today.set(localToday());
