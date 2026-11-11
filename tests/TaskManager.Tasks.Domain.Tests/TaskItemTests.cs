@@ -114,13 +114,23 @@ public class TaskItemTests
     }
 
     [Fact]
+    public void Create_pastDueDateMessage_tellsTheUserWhatToDo()
+    {
+        var now = new DateTimeOffset(2026, 11, 10, 12, 0, 0, TimeSpan.Zero);
+        var result = TaskItem.Create(Id, UserId, "t", null, null, new DateOnly(2026, 11, 8), now);
+
+        result.Error!.FieldErrors!["dueDate"].ShouldBe(["Due date cannot be in the past. Choose today or a later date."]);
+        TaskItem.DueDateInPastMessage.ShouldBe("Due date cannot be in the past. Choose today or a later date.");
+    }
+
+    [Fact]
     public void Create_rejects_due_date_two_days_before_today_utc()
     {
         var now = new DateTimeOffset(2026, 11, 10, 0, 0, 0, TimeSpan.Zero);
         var result = TaskItem.Create(Id, UserId, "t", null, null, new DateOnly(2026, 11, 8), now);
 
         result.IsFailure.ShouldBeTrue();
-        result.Error!.FieldErrors!["dueDate"].ShouldContain("Due date cannot be in the past.");
+        result.Error!.FieldErrors!["dueDate"].ShouldContain(TaskItem.DueDateInPastMessage);
     }
 
     [Fact]
