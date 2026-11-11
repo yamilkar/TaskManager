@@ -22,12 +22,17 @@ public sealed class TaskManagerStack : Stack
     /// <summary>A SecureString the owner creates once: CloudFormation cannot create SecureString parameters.</summary>
     public const string JwtSigningKeyParameterName = "/taskmanager/jwt-signing-key";
 
+    /// <summary>A SecureString the owner creates once, holding the demo user's private password (shared with reviewers).</summary>
+    public const string DemoPasswordParameterName = "/taskmanager/demo-password";
+
     public TaskManagerStack(Construct scope, string id, TaskManagerStackProps props) : base(scope, id, props)
     {
         var data = new DataConstruct(this, "Data");
         var hosting = new WebHostingConstruct(this, "WebHosting");
         var jwtSigningKey = StringParameter.FromSecureStringParameterAttributes(this, "JwtSigningKey",
             new SecureStringParameterAttributes { ParameterName = JwtSigningKeyParameterName });
+        var demoPassword = StringParameter.FromSecureStringParameterAttributes(this, "DemoPassword",
+            new SecureStringParameterAttributes { ParameterName = DemoPasswordParameterName });
 
         var usersApi = new ApiConstruct(this, "UsersApi", new ApiConstructProps
         {
@@ -36,6 +41,7 @@ public sealed class TaskManagerStack : Stack
             Table = data.UsersTable,
             JwtSigningKey = jwtSigningKey,
             AllowedOrigin = hosting.SiteUrl,
+            DemoPassword = demoPassword,
         });
         var tasksApi = new ApiConstruct(this, "TasksApi", new ApiConstructProps
         {

@@ -88,6 +88,44 @@ public sealed class TaskManagerStackTests
     }
 
     [Fact]
+    public void Stack_usersFunction_seedsTheDemoUserWithThePrivatePasswordFromSsm()
+    {
+        T.HasResourceProperties("AWS::Lambda::Function", new Props
+        {
+            ["Handler"] = "TaskManager.Users.Api",
+            ["Environment"] = new Props
+            {
+                ["Variables"] = Match.ObjectLike(new Props
+                {
+                    ["Seed__Enabled"] = "true",
+                    ["Seed__DemoPasswordParameterName"] = "/taskmanager/demo-password",
+                }),
+            },
+        });
+    }
+
+    [Fact]
+    public void Stack_tasksFunction_seedsTheDemoTasksWithoutAnyPassword()
+    {
+        var tasks = T.FindResources("AWS::Lambda::Function", new Props { ["Properties"] = Match.ObjectLike(new Props { ["Handler"] = "TaskManager.Tasks.Api" }) });
+        var json = System.Text.Json.JsonSerializer.Serialize(tasks);
+
+        json.ShouldContain("\"Seed__Enabled\":\"true\"");
+        json.ShouldNotContain("DemoPassword");
+    }
+
+    [Theory]
+    [InlineData("UsersApi", true)]
+    [InlineData("TasksApi", false)]
+    public void Stack_onlyTheUsersFunction_canReadTheDemoPassword(string api, bool canRead)
+    {
+        var policy = T.FindResources("AWS::IAM::Policy").Single(p => p.Key.StartsWith($"{api}FunctionServiceRoleDefaultPolicy", StringComparison.Ordinal));
+        var json = System.Text.Json.JsonSerializer.Serialize(policy.Value);
+
+        json.Contains(":parameter/taskmanager/demo-password", StringComparison.Ordinal).ShouldBe(canRead);
+    }
+
+    [Fact]
     public void Stack_apiFunctions_allowOnlyTheSiteOrigin()
     {
         var functions = T.ResourcesJson("AWS::Lambda::Function");

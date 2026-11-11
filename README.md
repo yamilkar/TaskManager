@@ -90,6 +90,8 @@ A missing or too-short key makes the API fail at startup. `.claude/launch.json` 
 
 `demo@taskmanager.dev` / `Demo123!` (the login page also has a "Use demo account" button). The demo user has a few seeded tasks.
 
+On the deployed site the same demo user exists with a **private password** (from SSM, shared only with reviewers), and the login page does not show the demo option.
+
 ## Running tests
 
 ```bash
@@ -133,8 +135,9 @@ Set through `appsettings*.json`, user-secrets or environment variables (`Section
 | | `SigningKeyParameterName` | unset locally; in AWS `/taskmanager/jwt-signing-key`, an SSM SecureString read at startup into `SigningKey` (a configured `SigningKey` wins) |
 | | `Issuer`, `Audience` | `taskmanager-users`, `taskmanager-api` |
 | | `LifetimeMinutes` | `60` |
-| `Seed` | `Enabled` | `false`; `true` in Development. Seeding is idempotent, and enabling it outside Development fails startup (the demo password is public) |
-| | `DemoUserId`, `DemoEmail`, `DemoPassword`, `DemoFullName` | fixed demo user (`11111111-1111-1111-1111-111111111111`) |
+| `Seed` | `Enabled` | `false`; `true` in Development and in AWS. Seeding is idempotent. Outside Development it requires a private `DemoPassword`: the public default or a blank one fails startup |
+| | `DemoUserId`, `DemoEmail`, `DemoPassword`, `DemoFullName` | fixed demo user (`11111111-1111-1111-1111-111111111111`); `DemoPassword` defaults to the public `Demo123!` |
+| | `DemoPasswordParameterName` | unset locally; in AWS `/taskmanager/demo-password`, an SSM SecureString read at startup into `DemoPassword` (Users API) |
 | `Cors` | `AllowedOrigins` | `["http://localhost:4200"]` |
 | `RateLimiting` | `LoginPermitLimit`, `RegisterPermitLimit` | `5` per minute per IP each (Users API only) |
 | `ForwardedHeaders` | `KnownProxies`, `KnownNetworks` | unset = `X-Forwarded-For` ignored; set to the proxy IPs or CIDR ranges (CloudFront, ALB) to rate-limit and log the real client IP |
@@ -145,7 +148,7 @@ The client reads `web/public/config.json` at startup, so one build runs in any e
 { "usersApiUrl": "http://localhost:5080", "tasksApiUrl": "http://localhost:5090", "demoAccount": true }
 ```
 
-`demoAccount` shows the demo credentials on the login page. The deployed `config.json` is generated with the AWS API URLs and no `demoAccount`, because there is no demo user in AWS.
+`demoAccount` shows the demo credentials on the login page. The deployed `config.json` is generated with the AWS API URLs and no `demoAccount`: the demo user exists in AWS, but its password is private, so the page does not advertise it.
 
 ## API overview
 
@@ -200,7 +203,7 @@ flowchart LR
 | Users API, Tasks API | Lambda (`dotnet10`, arm64, 1024 MB) with a public **Function URL** | No API Gateway charge; Lambda's 1M requests/month are always free |
 | Data | DynamoDB, provisioned **5 RCU / 5 WCU per table** | 10 + 10 is inside the always-free 25 / 25 |
 | Web client | Private S3 bucket behind **CloudFront** | CloudFront's 1 TB / 10M requests are always free; the bucket holds a few MB |
-| JWT signing key | **SSM Parameter Store SecureString** | Free (Secrets Manager costs $0.40 per secret per month) |
+| JWT signing key, demo password | **SSM Parameter Store SecureStrings** | Free (Secrets Manager costs $0.40 per secret per month) |
 | Logs and metrics | CloudWatch Logs (7-day retention), 6 EMF custom metrics | Within the 5 GB and 10-metric free allowances |
 | CI/CD sign-in | GitHub OIDC → IAM role | No AWS keys stored in GitHub |
 
@@ -212,6 +215,7 @@ Expected cost for this exercise: **$0 per month**.
 - Otherwise the `deploy` job runs after `backend`, `frontend` and `repo-hygiene` pass. It publishes both APIs deterministically, so unchanged code produces byte-identical output, builds the client and runs `cdk deploy`. CloudFormation then updates only the resources whose code or settings changed: an unchanged Lambda or client is left alone.
 - **Manual deploy**: Actions → CI → Run workflow on `main`. The tests run first, then everything is deployed (unchanged resources are still skipped).
 - After each deploy, `infra/smoke-test.sh` checks the live site (including a deep-link reload), `config.json`, both `/health/ready` endpoints, login and token rejection, and CORS from the site's origin. The job summary lists the site and API URLs.
+- **Demo data**: on each cold start the APIs make sure the demo user `demo@taskmanager.dev` (private password from SSM) and its sample tasks exist. The login page does not show the demo option; reviewers sign in with the credentials you give them.
 - Until the AWS setup below is done, the `deploy` job is skipped, so CI stays green.
 
 ### One-time AWS setup (repository owner)
@@ -219,8 +223,10 @@ Expected cost for this exercise: **$0 per month**.
 You need an AWS account and the AWS CLI signed in as an administrator (for example `aws sso login`). The pipeline itself never uses these credentials.
 
 ```bash
-# 1. The JWT signing key (a SecureString; CloudFormation cannot create these)
+# 1. The JWT signing key and the demo user's private password (SecureStrings; CloudFormation cannot create these).
+#    Choose the demo password yourself and share it only with reviewers; the public Demo123! is refused.
 aws ssm put-parameter --region us-east-1 --name /taskmanager/jwt-signing-key --type SecureString --value "$(openssl rand -base64 48)"
+aws ssm put-parameter --region us-east-1 --name /taskmanager/demo-password --type SecureString --value '<your private demo password>'
 
 # 2. Prepare the account for the CDK (once per account and region)
 npx --yes aws-cdk@2.1148.1 bootstrap aws://<ACCOUNT_ID>/us-east-1
@@ -240,7 +246,7 @@ Then run the workflow manually (or merge a change). The deploy role is trusted o
 
 ```bash
 cd infra && npx --yes aws-cdk@2.1148.1 destroy TaskManager TaskManager-GitHubOidc
-aws ssm delete-parameter --region us-east-1 --name /taskmanager/jwt-signing-key
+aws ssm delete-parameters --region us-east-1 --names /taskmanager/jwt-signing-key /taskmanager/demo-password
 ```
 
 Tables, bucket contents and log groups are deleted with the stack.
@@ -280,4 +286,4 @@ Tables, bucket contents and log groups are deleted with the stack.
 - No pagination parameters on the list endpoint; no password reset.
 - **Rate limits are per instance and per IP**: each warm Lambda instance keeps its own counters, so the effective limit grows with concurrency. In AWS the browser calls the Lambda Function URLs directly (no proxy), so the client IP is the real one and `ForwardedHeaders` stays unset. Behind a single proxy, set `ForwardedHeaders:KnownProxies` or `KnownNetworks`; multi-hop proxy chains are not supported.
 - **Default AWS domains**: the site uses its `*.cloudfront.net` address and the APIs their `*.lambda-url.<region>.on.aws` addresses; there is no custom domain, WAF or API Gateway (all left out to stay in the free tier).
-- **No demo user in AWS**: sign up on the deployed site instead.
+- **Demo password changes**: seeding never overwrites an existing demo user, so changing `/taskmanager/demo-password` later does not change the password of a demo user that already exists. To rotate it, delete the demo user's two items (`USER#11111111-1111-1111-1111-111111111111` and `EMAIL#demo@taskmanager.dev`) from `TaskManager-Users`; the next cold start recreates them.

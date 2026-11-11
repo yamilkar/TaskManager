@@ -20,6 +20,9 @@ public sealed class ApiConstructProps
 
     /// <summary>The site origin allowed by CORS, e.g. https://d123.cloudfront.net.</summary>
     public required string AllowedOrigin { get; init; }
+
+    /// <summary>The demo user's private password (Users API only); the Tasks API seeds demo tasks without it.</summary>
+    public IStringParameter? DemoPassword { get; init; }
 }
 
 /// <summary>
@@ -36,6 +39,22 @@ public sealed class ApiConstruct : Construct
             RemovalPolicy = RemovalPolicy.DESTROY,
         });
 
+        var environment = new Dictionary<string, string>
+        {
+            ["Dynamo__TableName"] = props.Table.TableName,
+            ["Dynamo__Region"] = Stack.Of(this).Region,
+            ["Jwt__SigningKeyParameterName"] = props.JwtSigningKey.ParameterName,
+            ["Cors__AllowedOrigins__0"] = props.AllowedOrigin,
+            // Idempotent demo data for reviewers: the demo user (Users API) and its tasks (Tasks API).
+            ["Seed__Enabled"] = "true",
+            // Spec section 11: CloudWatch extracts EMF metrics only from log lines that are pure JSON.
+            ["AWS_LAMBDA_HANDLER_LOG_FORMAT"] = "Unformatted",
+        };
+        if (props.DemoPassword is not null)
+        {
+            environment["Seed__DemoPasswordParameterName"] = props.DemoPassword.ParameterName;
+        }
+
         var function = new Function(this, "Function", new FunctionProps
         {
             Runtime = Runtime.DOTNET_10,
@@ -45,19 +64,12 @@ public sealed class ApiConstruct : Construct
             MemorySize = 1024,
             Timeout = Duration.Seconds(15),
             LogGroup = logs,
-            Environment = new Dictionary<string, string>
-            {
-                ["Dynamo__TableName"] = props.Table.TableName,
-                ["Dynamo__Region"] = Stack.Of(this).Region,
-                ["Jwt__SigningKeyParameterName"] = props.JwtSigningKey.ParameterName,
-                ["Cors__AllowedOrigins__0"] = props.AllowedOrigin,
-                // Spec section 11: CloudWatch extracts EMF metrics only from log lines that are pure JSON.
-                ["AWS_LAMBDA_HANDLER_LOG_FORMAT"] = "Unformatted",
-            },
+            Environment = environment,
         });
 
         props.Table.GrantReadWriteData(function);
         props.JwtSigningKey.GrantRead(function);
+        props.DemoPassword?.GrantRead(function);
 
         var url = function.AddFunctionUrl(new FunctionUrlOptions { AuthType = FunctionUrlAuthType.NONE });
 
