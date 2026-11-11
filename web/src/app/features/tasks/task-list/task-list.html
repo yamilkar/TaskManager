@@ -13,12 +13,13 @@
               matButton
               type="button"
               [attr.aria-label]="'Confirm delete ' + task.title"
+              [attr.data-confirm-id]="task.id"
               [disabled]="busy() || task.id === editingId() || pendingIds().has(task.id)"
               (click)="confirmDelete(task)"
             >
               Delete
             </button>
-            <button matButton type="button" (click)="confirmingId.set(null)">Keep</button>
+            <button matButton type="button" (click)="setConfirming(null, task.id)">Keep</button>
           } @else {
             <button
               matButton
@@ -49,8 +50,9 @@
               matButton
               type="button"
               [attr.aria-label]="'Delete ' + task.title"
+              [attr.data-delete-id]="task.id"
               [disabled]="busy() || task.id === editingId() || pendingIds().has(task.id)"
-              (click)="confirmingId.set(task.id)"
+              (click)="setConfirming(task.id, task.id)"
             >
               Delete
             </button>

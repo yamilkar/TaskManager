@@ -137,4 +137,21 @@ describe('TaskList', () => {
 
     expect(button(el, 'Delete A')!.disabled).toBe(true);
   });
+
+  it('TaskList: focus moves to Confirm when asking and back to Delete on Keep', async () => {
+    const fixture = setupFixture([mk({ id: '1', title: 'A' })]);
+    const el = fixture.nativeElement as HTMLElement;
+    document.body.appendChild(el);
+
+    button(el, 'Delete A')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(button(el, 'Confirm delete A'));
+
+    Array.from(el.querySelectorAll('button')).find((b) => b.textContent!.trim() === 'Keep')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(button(el, 'Delete A'));
+    el.remove();
+  });
 });

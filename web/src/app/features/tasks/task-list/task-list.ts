@@ -1,5 +1,15 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { EmptyState } from '../../../shared/ui/empty-state/empty-state';
@@ -31,6 +41,19 @@ export class TaskList {
 
   protected readonly statuses = TASK_STATUSES;
   protected readonly labels = STATUS_LABELS;
+
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+
+  /** Opens or closes the row's confirmation and keeps keyboard focus in that row, since the focused button is swapped out. */
+  protected setConfirming(id: string | null, focusTaskId: string): void {
+    this.confirmingId.set(id);
+    const target = id ? 'confirm' : 'delete';
+    afterNextRender(
+      () => this.host.nativeElement.querySelector<HTMLButtonElement>(`[data-${target}-id="${focusTaskId}"]`)?.focus(),
+      { injector: this.injector },
+    );
+  }
 
   protected confirmDelete(task: Task): void {
     this.confirmingId.set(null);
