@@ -20,4 +20,8 @@ export class TasksApi {
   update(id: string, req: UpdateTaskRequest): Observable<Task> {
     return this.http.put<Task>(`${this.baseUrl}/api/v1/tasks/${id}`, req);
   }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/api/v1/tasks/${id}`);
+  }
 }

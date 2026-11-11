@@ -60,4 +60,11 @@ describe('TasksApi', () => {
     req.flush(task);
     expect(result).toEqual(task);
   });
+
+  it('delete sends DELETE to /api/v1/tasks/{id}', () => {
+    let done = false;
+    api.delete('7').subscribe({ complete: () => (done = true) });
+    ctrl.expectOne({ method: 'DELETE', url: 'http://tasks/api/v1/tasks/7' }).flush(null, { status: 204, statusText: 'No Content' });
+    expect(done).toBe(true);
+  });
 });

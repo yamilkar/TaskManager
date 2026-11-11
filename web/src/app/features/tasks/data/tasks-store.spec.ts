@@ -20,6 +20,7 @@ describe('TasksStore', () => {
     list: vi.fn<() => Observable<Task[]>>(),
     create: vi.fn<(r: unknown) => Observable<Task>>(),
     update: vi.fn<(id: string, r: unknown) => Observable<Task>>(),
+    delete: vi.fn<(id: string) => Observable<void>>(),
   };
 
   function setup() {
@@ -33,6 +34,7 @@ describe('TasksStore', () => {
     api.list.mockReset();
     api.create.mockReset();
     api.update.mockReset();
+    api.delete.mockReset();
   });
 
   it('TasksStore.load sets loading and stores tasks', async () => {
@@ -114,6 +116,42 @@ describe('TasksStore', () => {
     const before = store.tasks();
 
     await expect(store.update('b', edit)).rejects.toEqual(err);
+    expect(store.tasks()).toBe(before);
+  });
+
+  it('TasksStore.remove drops the task from the list', async () => {
+    api.list.mockReturnValue(of([mk('a'), mk('b')]));
+    api.delete.mockReturnValue(of(undefined));
+    const store = setup();
+    await store.load();
+
+    await store.remove('a');
+
+    expect(api.delete).toHaveBeenCalledWith('a');
+    expect(store.tasks().map((t) => t.id)).toEqual(['b']);
+  });
+
+  it('TasksStore.remove treats 404 as already removed', async () => {
+    const gone: AppError = { status: 404, message: 'Task not found.', fieldErrors: {} };
+    api.list.mockReturnValue(of([mk('a')]));
+    api.delete.mockReturnValue(throwError(() => gone));
+    const store = setup();
+    await store.load();
+
+    await store.remove('a');
+
+    expect(store.tasks()).toEqual([]);
+  });
+
+  it('TasksStore.remove rethrows other failures and leaves the list unchanged', async () => {
+    const err: AppError = { status: 500, message: 'boom', fieldErrors: {} };
+    api.list.mockReturnValue(of([mk('a')]));
+    api.delete.mockReturnValue(throwError(() => err));
+    const store = setup();
+    await store.load();
+    const before = store.tasks();
+
+    await expect(store.remove('a')).rejects.toEqual(err);
     expect(store.tasks()).toBe(before);
   });
 });

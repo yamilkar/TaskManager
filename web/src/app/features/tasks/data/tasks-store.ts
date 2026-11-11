@@ -41,4 +41,16 @@ export class TasksStore {
     this.tasksState.update((tasks) => tasks.map((t) => (t.id === id ? task : t)));
     return task;
   }
+
+  /** Deletes the task and drops it from the list. A 404 means it is already gone, so it is dropped too. */
+  async remove(id: string): Promise<void> {
+    try {
+      await firstValueFrom(this.api.delete(id), { defaultValue: undefined });
+    } catch (e) {
+      if ((e as AppError).status !== 404) {
+        throw e;
+      }
+    }
+    this.tasksState.update((tasks) => tasks.filter((t) => t.id !== id));
+  }
 }
