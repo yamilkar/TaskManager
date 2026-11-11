@@ -74,7 +74,8 @@ export class TaskForm {
 
   constructor() {
     this.form.controls.dueDate.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
-      if (typeof value === 'string' && value !== '') {
+      // Mark touched early only once the year is complete, so typing "2026" never flashes a past-date error.
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && value.slice(0, 4) >= '1000') {
         this.form.controls.dueDate.markAsTouched();
         this.cdr.markForCheck();
       }

@@ -111,7 +111,7 @@ describe('TaskForm', () => {
   it('TaskForm: displays server field errors under matching controls', () => {
     fixture.componentRef.setInput('serverErrors', {
       title: ['Title is taken.'],
-      dueDate: ['Due date cannot be in the past.'],
+      dueDate: [DUE_DATE_IN_PAST_MESSAGE],
     });
     fixture.detectChanges();
     fixture.detectChanges();
@@ -120,7 +120,7 @@ describe('TaskForm', () => {
     const titleField = fields.find((f) => f.querySelector('input[name=title]'))!;
     const dueField = fields.find((f) => f.querySelector('input[name=dueDate]'))!;
     expect(titleField.textContent).toContain('Title is taken.');
-    expect(dueField.textContent).toContain('Due date cannot be in the past.');
+    expect(dueField.textContent).toContain(DUE_DATE_IN_PAST_MESSAGE);
   });
 
   it('TaskForm: reset clears the form', () => {
@@ -148,6 +148,17 @@ describe('TaskForm', () => {
     expect(el.textContent).toContain(DUE_DATE_IN_PAST_MESSAGE);
   });
 
+  it('TaskForm: does not show the past-date error while the year is still being typed', () => {
+    type(q('input[name=dueDate]'), '0002-11-10');
+    fixture.detectChanges();
+    expect(el.textContent).not.toContain(DUE_DATE_IN_PAST_MESSAGE);
+    expect(fixture.componentInstance['form'].controls.dueDate.touched).toBe(false);
+
+    type(q('input[name=dueDate]'), '2000-01-01');
+    fixture.detectChanges();
+    expect(el.textContent).toContain(DUE_DATE_IN_PAST_MESSAGE);
+  });
+
   it('TaskForm: past-date message matches the server text', () => {
     expect(DUE_DATE_IN_PAST_MESSAGE).toBe('Due date cannot be in the past. Choose today or a later date.');
   });
@@ -158,6 +169,8 @@ describe('TaskForm', () => {
 
   it('TaskForm: clearing a past due date clears the error', () => {
     type(q('input[name=dueDate]'), '2000-01-01');
+    fixture.detectChanges();
+    expect(el.textContent).toContain(DUE_DATE_IN_PAST_MESSAGE);
     type(q('input[name=dueDate]'), '');
     type(q('input[name=title]'), 'T');
     submit();
