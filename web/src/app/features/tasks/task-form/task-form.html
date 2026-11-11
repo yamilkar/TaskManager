@@ -37,8 +37,9 @@
       <mat-form-field appearance="outline">
         <mat-label>Due date</mat-label>
         <input matInput type="date" name="dueDate" formControlName="dueDate" [min]="today()" />
+        <mat-hint>Today or later.</mat-hint>
         @if (form.controls.dueDate.hasError('pastDate')) {
-          <mat-error>Due date cannot be in the past.</mat-error>
+          <mat-error>{{ dueDateInPastMessage }}</mat-error>
         }
         <app-form-error matError [errors]="form.controls.dueDate.errors?.['server']" />
       </mat-form-field>

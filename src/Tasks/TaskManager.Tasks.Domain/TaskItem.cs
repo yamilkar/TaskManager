@@ -6,6 +6,8 @@ public sealed class TaskItem
 {
     public const int TitleMaxLength = 200;
     public const int DescriptionMaxLength = 2000;
+    /// <summary>Must stay identical to the web client's <c>DUE_DATE_IN_PAST_MESSAGE</c> (spec D18); both sides pin it in a test.</summary>
+    public const string DueDateInPastMessage = "Due date cannot be in the past. Choose today or a later date.";
 
     private TaskItem(
         Guid id,
@@ -82,7 +84,7 @@ public sealed class TaskItem
         // Spec D9: valid if not before today in the user's time zone; UTC today minus one day covers every UTC offset.
         if (dueDate is { } due && due < DateOnly.FromDateTime(now.UtcDateTime).AddDays(-1))
         {
-            errors["dueDate"] = ["Due date cannot be in the past."];
+            errors["dueDate"] = [DueDateInPastMessage];
         }
 
         if (errors.Count > 0)

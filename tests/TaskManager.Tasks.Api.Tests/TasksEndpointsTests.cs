@@ -9,6 +9,7 @@ using TaskManager.Tasks.Application;
 using TaskManager.Tasks.Application.CreateTask;
 using TaskManager.Tasks.Application.GetTask;
 using TaskManager.Tasks.Application.ListTasks;
+using TaskManager.Tasks.Domain;
 using TaskManager.Testing;
 
 namespace TaskManager.Tasks.Api.Tests;
@@ -96,6 +97,71 @@ public sealed class TasksEndpointsTests
         response.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
         body.GetProperty("errors").TryGetProperty("status", out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Create_without_title_returns_400_with_title_error()
+    {
+        using var factory = new TasksApiFactory(useRealHandlers: true);
+
+        var response = await ClientWith(factory, Guid.NewGuid()).PostAsync(Url, Json("""{"description":"d"}"""));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        errors.GetProperty("title")[0].GetString().ShouldBe("Title is required.");
+    }
+
+    [Fact]
+    public async Task Create_without_status_returns_201_with_status_ToDo()
+    {
+        using var factory = new TasksApiFactory(useRealHandlers: true);
+
+        var response = await ClientWith(factory, Guid.NewGuid()).PostAsync(Url, Json("""{"title":"x"}"""));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("status").GetString().ShouldBe("ToDo");
+    }
+
+    [Fact]
+    public async Task Create_with_empty_status_returns_400_with_status_error()
+    {
+        using var factory = new TasksApiFactory(useRealHandlers: true);
+
+        var response = await ClientWith(factory, Guid.NewGuid()).PostAsync(Url, Json("""{"title":"x","status":""}"""));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        errors.TryGetProperty("status", out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Create_with_past_due_date_returns_400_with_reason()
+    {
+        using var factory = new TasksApiFactory(useRealHandlers: true);
+
+        var response = await ClientWith(factory, Guid.NewGuid()).PostAsync(Url, Json("""{"title":"x","dueDate":"2000-01-01"}"""));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("application/problem+json");
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
+        errors.GetProperty("dueDate")[0].GetString().ShouldBe(TaskItem.DueDateInPastMessage);
+    }
+
+    [Fact]
+    public async Task Create_with_description_status_and_due_date_returns_201_with_all_fields()
+    {
+        using var factory = new TasksApiFactory(useRealHandlers: true);
+
+        var response = await ClientWith(factory, Guid.NewGuid()).PostAsync(Url, Json("""{"title":"x","description":"d","status":"InProgress","dueDate":"2099-12-31"}"""));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("description").GetString().ShouldBe("d");
+        body.GetProperty("status").GetString().ShouldBe("InProgress");
+        body.GetProperty("dueDate").GetString().ShouldBe("2099-12-31");
     }
 
     [Fact]
