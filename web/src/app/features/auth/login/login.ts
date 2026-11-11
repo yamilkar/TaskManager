@@ -6,6 +6,7 @@ import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
 import { AuthStore } from '../../../core/auth/auth-store';
+import { APP_CONFIG } from '../../../core/config/app-config';
 import { AppError } from '../../../core/http/app-error';
 
 const INVALID_CREDENTIALS = 'Invalid email or password.';
@@ -32,6 +33,8 @@ const INVALID_CREDENTIALS = 'Invalid email or password.';
 export class Login {
   private readonly auth = inject(AuthStore);
   private readonly router = inject(Router);
+
+  protected readonly demoAccount = inject(APP_CONFIG).demoAccount === true;
 
   readonly returnUrl = input<string>();
   readonly reason = input<string>();

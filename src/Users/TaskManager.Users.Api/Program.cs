@@ -1,3 +1,4 @@
+using Amazon.SimpleSystemsManagement;
 using TaskManager.ApiCommon;
 using TaskManager.Infrastructure.DynamoDb;
 using TaskManager.Users.Api;
@@ -5,6 +6,10 @@ using TaskManager.Users.Application;
 using TaskManager.Users.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// In AWS the demo user's private password comes from SSM (Seed:DemoPasswordParameterName).
+builder.Configuration.AddFromSsm(
+    () => new AmazonSimpleSystemsManagementClient(), "Seed:DemoPasswordParameterName", "Seed:DemoPassword");
 
 builder.AddTaskManagerApiDefaults();
 builder.Services.AddUsersApplication().AddUsersInfrastructure(builder.Configuration);

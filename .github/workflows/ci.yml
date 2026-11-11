@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Manual deploy: Actions → CI → Run workflow (on main). Runs the tests first, then deploys everything.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,14 +16,15 @@ concurrency:
 
 env:
   COVERAGE_THRESHOLD: 80
+  CDK_CLI_VERSION: 2.1148.1
 
 jobs:
   backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           global-json-file: global.json
 
@@ -56,7 +59,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-report
           path: coverage-report
@@ -68,9 +71,9 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: lts/*
           cache: npm
@@ -84,7 +87,7 @@ jobs:
   repo-hygiene:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Reject symbolic links
         run: |
@@ -92,3 +95,113 @@ jobs:
             echo "Symbolic links are not allowed in this repository."
             exit 1
           fi
+
+      - name: Test change detection
+        run: .github/scripts/changed-artifacts.test.sh
+
+  changes:
+    # Which deployable artifacts changed since the last successful production deployment (a manual run deploys
+    # everything). Diffing against what is actually deployed, not github.event.before or the last green run, keeps
+    # changes from runs that were cancelled (GitHub drops queued runs), failed, or skipped the deploy job.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: read # to find the last successful deployment
+    outputs:
+      users-api: ${{ steps.detect.outputs.users-api }}
+      tasks-api: ${{ steps.detect.outputs.tasks-api }}
+      web: ${{ steps.detect.outputs.web }}
+      infra: ${{ steps.detect.outputs.infra }}
+      deploy: ${{ steps.detect.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Find the last successful production deployment
+        id: base
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(.github/scripts/last-deployed-sha.sh "$GITHUB_REPOSITORY" production)
+          echo "Last successful deployment: ${sha:-none (everything counts as changed)}"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Detect changed artifacts
+        id: detect
+        env:
+          BASE: ${{ steps.base.outputs.sha }}
+        run: .github/scripts/changed-artifacts.sh "$BASE" "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"
+
+  deploy:
+    # Green main only: after a merge that changed a deployable artifact, or on a manual run.
+    # Skipped until the AWS deploy role is configured (repository variable AWS_DEPLOY_ROLE_ARN).
+    needs: [changes, backend, frontend, repo-hygiene]
+    if: >-
+      github.ref == 'refs/heads/main' && vars.AWS_DEPLOY_ROLE_ARN != '' &&
+      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true')
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # OIDC sign-in to AWS: no AWS keys are stored in GitHub.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      # Byte-identical output for unchanged code, so CloudFormation leaves an unchanged Lambda alone.
+      PUBLISH_ARGS: >-
+        -c Release -r linux-arm64 --self-contained false -p:PublishReadyToRun=true
+        -p:ContinuousIntegrationBuild=true -p:IncludeSourceRevisionInInformationalVersion=false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Publish the Users API
+        run: dotnet publish src/Users/TaskManager.Users.Api $PUBLISH_ARGS -o artifacts/users-api
+
+      - name: Publish the Tasks API
+        run: dotnet publish src/Tasks/TaskManager.Tasks.Api $PUBLISH_ARGS -o artifacts/tasks-api
+
+      - name: Build the web client
+        working-directory: web
+        run: npm ci && npx ng build
+
+      - name: Sign in to AWS
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy (only resources whose code or settings changed are updated)
+        working-directory: infra
+        run: npx --yes "aws-cdk@$CDK_CLI_VERSION" deploy TaskManager --require-approval never --outputs-file cdk-outputs.json
+
+      - name: Smoke test the deployment
+        run: |
+          site=$(jq -r .TaskManager.SiteUrl infra/cdk-outputs.json)
+          users=$(jq -r .TaskManager.UsersApiUrl infra/cdk-outputs.json)
+          tasks=$(jq -r .TaskManager.TasksApiUrl infra/cdk-outputs.json)
+          infra/smoke-test.sh "$site" "$users" "$tasks"
+          {
+            echo "### Deployed"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Site | $site |"
+            echo "| Users API | $users |"
+            echo "| Tasks API | $tasks |"
+            echo ""
+            echo "Changed in this run (${{ github.event_name }}): users-api=${{ needs.changes.outputs.users-api }}, tasks-api=${{ needs.changes.outputs.tasks-api }}, web=${{ needs.changes.outputs.web }}, infra=${{ needs.changes.outputs.infra }}"
+          } >> "$GITHUB_STEP_SUMMARY"

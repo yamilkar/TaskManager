@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/infra/">
+    <Project Path="infra/TaskManager.Infra/TaskManager.Infra.csproj" />
+  </Folder>
   <Folder Name="/src/" />
   <Folder Name="/src/BuildingBlocks/">
     <Project Path="src/BuildingBlocks/TaskManager.ApiCommon/TaskManager.ApiCommon.csproj" />
@@ -20,6 +23,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/TaskManager.ApiCommon.Tests/TaskManager.ApiCommon.Tests.csproj" />
     <Project Path="tests/TaskManager.ArchitectureTests/TaskManager.ArchitectureTests.csproj" />
+    <Project Path="tests/TaskManager.Infra.Tests/TaskManager.Infra.Tests.csproj" />
     <Project Path="tests/TaskManager.SharedKernel.Tests/TaskManager.SharedKernel.Tests.csproj" />
     <Project Path="tests/TaskManager.Tasks.Api.Tests/TaskManager.Tasks.Api.Tests.csproj" />
     <Project Path="tests/TaskManager.Tasks.Application.Tests/TaskManager.Tasks.Application.Tests.csproj" />

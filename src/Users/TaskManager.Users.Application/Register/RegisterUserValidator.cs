@@ -30,22 +30,7 @@ public static class RegisterUserValidator
         }
         else
         {
-            var problems = new List<string>();
-            if (password.Length < PasswordMinLength)
-            {
-                problems.Add("Password must be at least 8 characters.");
-            }
-
-            if (password.Length > PasswordMaxLength)
-            {
-                problems.Add("Password must be at most 128 characters.");
-            }
-
-            if (!password.Any(char.IsLetter) || !password.Any(char.IsDigit))
-            {
-                problems.Add("Password must contain at least one letter and one digit.");
-            }
-
+            var problems = PasswordProblems(password);
             if (problems.Count > 0)
             {
                 fields["password"] = [.. problems];
@@ -55,5 +40,27 @@ public static class RegisterUserValidator
         return fields.Count == 0
             ? null
             : Error.Validation("validation_failed", "One or more validation errors occurred.", fields);
+    }
+
+    /// <summary>The password rule for every account, also applied to the deployed demo user's password.</summary>
+    public static IReadOnlyList<string> PasswordProblems(string password)
+    {
+        var problems = new List<string>();
+        if (password.Length < PasswordMinLength)
+        {
+            problems.Add("Password must be at least 8 characters.");
+        }
+
+        if (password.Length > PasswordMaxLength)
+        {
+            problems.Add("Password must be at most 128 characters.");
+        }
+
+        if (!password.Any(char.IsLetter) || !password.Any(char.IsDigit))
+        {
+            problems.Add("Password must contain at least one letter and one digit.");
+        }
+
+        return problems;
     }
 }

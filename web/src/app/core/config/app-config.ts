@@ -3,6 +3,8 @@ import { InjectionToken } from '@angular/core';
 export interface AppConfig {
   usersApiUrl: string;
   tasksApiUrl: string;
+  /** Shows the public demo credentials on the login page. Only the local config enables it. */
+  demoAccount?: boolean;
 }
 
 export const APP_CONFIG = new InjectionToken<AppConfig>('APP_CONFIG');

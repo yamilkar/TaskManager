@@ -1,0 +1,8 @@
+{
+  "app": "dotnet run --project TaskManager.Infra/TaskManager.Infra.csproj",
+  "context": {
+    "usersApiCode": "../artifacts/users-api",
+    "tasksApiCode": "../artifacts/tasks-api",
+    "webDist": "../web/dist/web/browser"
+  }
+}

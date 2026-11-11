@@ -2,6 +2,7 @@ using Amazon.DynamoDBv2;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using TaskManager.Infrastructure.DynamoDb;
+using TaskManager.Users.Application.Register;
 using TaskManager.Users.Infrastructure.Persistence;
 using TaskManager.Users.Infrastructure.Seeding;
 
@@ -24,11 +25,9 @@ public sealed class UsersDatabaseBootstrapper(
 
         if (seedOptions.Value.Enabled)
         {
-            // The demo password is public (README), so never create it in a deployed environment.
             if (!environment.IsDevelopment())
             {
-                throw new InvalidOperationException(
-                    $"{UserSeedOptions.SectionName}:Enabled is only allowed in Development; the demo credentials are public.");
+                EnsureDeployableDemoPassword(seedOptions.Value.DemoPassword);
             }
 
             await seeder.SeedAsync(cancellationToken);
@@ -36,4 +35,25 @@ public sealed class UsersDatabaseBootstrapper(
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>
+    /// Outside Development the demo user is reachable from the internet: its password must be private (not the
+    /// public README default) and meet the same rule as any registered account. Messages never include the value.
+    /// </summary>
+    private static void EnsureDeployableDemoPassword(string? password)
+    {
+        const string Key = $"{UserSeedOptions.SectionName}:DemoPassword";
+
+        if (string.IsNullOrWhiteSpace(password) || password == UserSeedOptions.PublicDemoPassword)
+        {
+            throw new InvalidOperationException(
+                $"{Key} must be set to a private value outside Development; the default demo password is public.");
+        }
+
+        var problems = RegisterUserValidator.PasswordProblems(password);
+        if (problems.Count > 0)
+        {
+            throw new InvalidOperationException($"{Key} is too weak: {string.Join(" ", problems)}");
+        }
+    }
 }

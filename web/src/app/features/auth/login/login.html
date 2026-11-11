@@ -34,8 +34,10 @@
       <button matButton="filled" type="submit" [disabled]="submitting()">Sign in</button>
     </form>
 
-    <p class="demo">Demo account: demo&#64;taskmanager.dev / Demo123!</p>
-    <button matButton="outlined" type="button" (click)="useDemo()">Use demo account</button>
+    @if (demoAccount) {
+      <p class="demo">Demo account: demo&#64;taskmanager.dev / Demo123!</p>
+      <button matButton="outlined" type="button" (click)="useDemo()">Use demo account</button>
+    }
     <p class="switch">No account? <a routerLink="/register">Create one</a></p>
   </mat-card-content>
 </mat-card>

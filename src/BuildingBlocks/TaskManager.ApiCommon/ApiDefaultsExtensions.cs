@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
+using Amazon.SimpleSystemsManagement;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -26,6 +27,9 @@ public static class ApiDefaultsExtensions
     public static WebApplicationBuilder AddTaskManagerApiDefaults(this WebApplicationBuilder builder)
     {
         var services = builder.Services;
+
+        builder.Configuration.AddFromSsm(
+            () => new AmazonSimpleSystemsManagementClient(), SsmConfiguration.JwtSigningKeyParameterNameKey, "Jwt:SigningKey");
 
         builder.Host.UseSerilog((context, _, logger) => logger
             .ReadFrom.Configuration(context.Configuration)
