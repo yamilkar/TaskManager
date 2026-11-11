@@ -2,15 +2,15 @@
 
 A task-management application: users register, sign in, and create, list and update **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
 
-This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task"), Story 2 ("See my tasks") and Story 3 ("Describe my task fully"), all merged, and Story 4 ("Update a task", in review). Further stories, such as task delete, are pending. AWS deployment and continuous deployment are sub-project 3 (pending).
+This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task") and Stories 2-5 ("See my tasks", "Describe my task fully", "Update a task", "Delete a task"), all merged. Story 6 ("Create my own account") is in progress, and Stories 7-9 are pending. AWS deployment and continuous deployment are sub-project 3 (pending).
 
 | Capability | Status |
 |---|---|
-| Register, sign in, `GET /users/me` | Done |
+| Register, sign in, `GET /users/me` | Done (sign-up polish in progress, Story 6) |
 | Create, list (newest first), get a task | Done |
 | Describe a task (description, status, due date) | Done (Story 3) |
-| Update a task, move it between To do, In progress and Done | In review (Story 4) |
-| Delete a task | Pending (Story 5) |
+| Update a task, move it between To do, In progress and Done | Done (Story 4) |
+| Delete a task, with confirmation | Done (Story 5) |
 | AWS deployment and CD | Pending (sub-project 3) |
 
 ## Project status
@@ -21,8 +21,9 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Story 2 (#16): see my tasks, newest first, no pagination | Merged in #32 |
 | Story 3 (#17): describe my task fully | Merged in #33 |
 | Story 4 (#18): update a task (edit, move between statuses) | Merged in #35 |
-| Story 5 (#19): delete a task, with confirmation | In progress on `feature/story-5-delete-a-task` |
-| Stories 6-9 (#20-#23) | Pending |
+| Story 5 (#19): delete a task, with confirmation | Merged in #36 |
+| Story 6 (#20): create my own account | In progress on `feature/story-6-create-my-own-account` |
+| Stories 7-9 (#21-#23) | Pending |
 | AWS deployment and CD (sub-project 3) | Pending |
 
 Last updated: 2026-11-10
