@@ -8,6 +8,7 @@ import { MatInput } from '@angular/material/input';
 import { FormError } from '../../../shared/ui/form-error/form-error';
 import { CreateTaskRequest, TaskStatus } from '../data/task.model';
 
+/** Must stay identical to the server's `TaskItem.DueDateInPastMessage` (spec D18); both sides pin it in a test. */
 export const DUE_DATE_IN_PAST_MESSAGE = 'Due date cannot be in the past. Choose today or a later date.';
 
 function maxTrimmedLength(max: number): ValidatorFn {
@@ -74,7 +75,9 @@ export class TaskForm {
 
   constructor() {
     this.form.controls.dueDate.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
-      // Mark touched early only once the year is complete, so typing "2026" never flashes a past-date error.
+      // Mark touched early only once the year is complete, so typing "2026" never flashes a past-date error:
+      // a native date input emits 0002-…, 0020-…, 0202-… on the way. Years below 1000 count as "still typing"
+      // and show the error only on blur or submit. The year is zero-padded, so the string compare orders like a number.
       if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && value.slice(0, 4) >= '1000') {
         this.form.controls.dueDate.markAsTouched();
         this.cdr.markForCheck();

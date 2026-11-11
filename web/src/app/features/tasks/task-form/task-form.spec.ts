@@ -159,6 +159,19 @@ describe('TaskForm', () => {
     expect(el.textContent).toContain(DUE_DATE_IN_PAST_MESSAGE);
   });
 
+  it('TaskForm: shows the past-date reason on blur for a year below 1000', () => {
+    const input = q('input[name=dueDate]');
+    type(input, '0999-01-01');
+    fixture.detectChanges();
+    expect(el.textContent).not.toContain(DUE_DATE_IN_PAST_MESSAGE);
+
+    input.dispatchEvent(new Event('blur'));
+    fixture.detectChanges();
+    expect(el.textContent).toContain(DUE_DATE_IN_PAST_MESSAGE);
+  });
+
+  // Same literal as TaskItemTests.Create_pastDueDateMessage_tellsTheUserWhatToDo (server side, spec D18).
+  // The two sides share no code, so change both tests and both constants together.
   it('TaskForm: past-date message matches the server text', () => {
     expect(DUE_DATE_IN_PAST_MESSAGE).toBe('Due date cannot be in the past. Choose today or a later date.');
   });

@@ -113,6 +113,8 @@ public class TaskItemTests
         result.IsSuccess.ShouldBeTrue();
     }
 
+    // Same literal as the web test "TaskForm: past-date message matches the server text" (spec D18).
+    // The two sides share no code, so change both tests and both constants together.
     [Fact]
     public void Create_pastDueDateMessage_tellsTheUserWhatToDo()
     {

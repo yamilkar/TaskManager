@@ -6,6 +6,7 @@ public sealed class TaskItem
 {
     public const int TitleMaxLength = 200;
     public const int DescriptionMaxLength = 2000;
+    /// <summary>Must stay identical to the web client's <c>DUE_DATE_IN_PAST_MESSAGE</c> (spec D18); both sides pin it in a test.</summary>
     public const string DueDateInPastMessage = "Due date cannot be in the past. Choose today or a later date.";
 
     private TaskItem(
