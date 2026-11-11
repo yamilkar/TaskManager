@@ -19,6 +19,8 @@
       <app-task-list
         [tasks]="store.tasks()"
         [editingId]="editing()?.id ?? null"
+        [busy]="submitting()"
+        [pendingIds]="pendingMoves()"
         (edit)="onEdit($event)"
         (move)="onMove($event)"
       />

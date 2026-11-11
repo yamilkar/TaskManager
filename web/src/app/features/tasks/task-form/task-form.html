@@ -48,7 +48,7 @@
           {{ task() ? 'Save changes' : 'Add task' }}
         </button>
         @if (task()) {
-          <button matButton type="button" (click)="cancelled.emit()">Cancel</button>
+          <button matButton type="button" [disabled]="submitting()" (click)="cancelled.emit()">Cancel</button>
         }
       </div>
     </form>

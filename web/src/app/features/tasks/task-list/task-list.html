@@ -7,7 +7,13 @@
           <app-status-badge [status]="task.status" />
         </div>
         <div class="actions">
-          <button matButton type="button" [attr.aria-label]="'Edit ' + task.title" (click)="edit.emit(task)">
+          <button
+            matButton
+            type="button"
+            [attr.aria-label]="'Edit ' + task.title"
+            [disabled]="busy() || pendingIds().has(task.id)"
+            (click)="edit.emit(task)"
+          >
             Edit
           </button>
           <button
@@ -15,7 +21,7 @@
             type="button"
             [attr.aria-label]="'Move ' + task.title"
             [matMenuTriggerFor]="moveMenu"
-            [disabled]="task.id === editingId()"
+            [disabled]="busy() || task.id === editingId() || pendingIds().has(task.id)"
           >
             Move
           </button>

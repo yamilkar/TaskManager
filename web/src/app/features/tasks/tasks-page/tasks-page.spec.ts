@@ -217,4 +217,67 @@ describe('TasksPage', () => {
       expect(rows(el)[0]).toContain('To do');
     });
   });
+  describe('pending saves', () => {
+    const disabled = (el: HTMLElement, label: string) =>
+      el.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.disabled;
+
+    async function loaded() {
+      const ctx = setup();
+      ctrl.expectOne(URL).flush([mk('a', 'First'), mk('b', 'Second')]);
+      await settle(ctx.fixture);
+      return ctx;
+    }
+
+    it('TasksPage: row actions and Cancel are disabled while an edit save is pending', async () => {
+      const { fixture, el } = await loaded();
+      el.querySelector<HTMLButtonElement>('button[aria-label="Edit Second"]')!.click();
+      await settle(fixture);
+
+      Array.from(el.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent!.trim() === 'Save changes')!.click();
+      fixture.detectChanges();
+      const req = ctrl.expectOne({ method: 'PUT', url: `${URL}/b` });
+
+      expect(disabled(el, 'Edit First')).toBe(true);
+      expect(disabled(el, 'Move First')).toBe(true);
+      expect(Array.from(el.querySelectorAll<HTMLButtonElement>('button')).find((b) => b.textContent!.trim() === 'Cancel')!.disabled).toBe(true);
+
+      req.flush(mk('b', 'Second'));
+      await settle(fixture);
+      await settle(fixture);
+      expect(disabled(el, 'Edit First')).toBe(false);
+      expect(disabled(el, 'Move First')).toBe(false);
+    });
+
+    it('TasksPage: row actions are disabled while a create is pending', async () => {
+      const { fixture, el } = await loaded();
+      type(el, 'Brand new');
+      el.querySelector<HTMLButtonElement>('button[type=submit]')!.click();
+      fixture.detectChanges();
+      const req = ctrl.expectOne((r) => r.method === 'POST');
+
+      expect(disabled(el, 'Edit First')).toBe(true);
+
+      req.flush(mk('c', 'Brand new'));
+      await settle(fixture);
+      await settle(fixture);
+      expect(disabled(el, 'Edit First')).toBe(false);
+    });
+
+    it('TasksPage: Edit is disabled for a task whose move is pending', async () => {
+      const { fixture, el } = await loaded();
+      el.querySelector<HTMLButtonElement>('button[aria-label="Move First"]')!.click();
+      await settle(fixture);
+      Array.from(document.querySelectorAll<HTMLElement>('[role=menuitem]')).find((i) => i.textContent!.trim() === 'Done')!.click();
+      fixture.detectChanges();
+      const req = ctrl.expectOne({ method: 'PUT', url: `${URL}/a` });
+
+      expect(disabled(el, 'Edit First')).toBe(true);
+      expect(disabled(el, 'Edit Second')).toBe(false);
+
+      req.flush({ ...mk('a', 'First'), status: 'Done' });
+      await settle(fixture);
+      await settle(fixture);
+      expect(disabled(el, 'Edit First')).toBe(false);
+    });
+  });
 });
