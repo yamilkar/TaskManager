@@ -1,5 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { AppError } from '../http/app-error';
 import { AuthApi } from './auth-api';
 import { LoginRequest, RegisterRequest, User } from './auth.models';
 
@@ -33,8 +34,12 @@ export class AuthStore {
     try {
       await this.login({ email: req.email, password: req.password });
       return 'signed-in';
-    } catch {
-      return 'registered';
+    } catch (e) {
+      // HTTP failures arrive as AppError (numeric status) from the error interceptor; anything else is a bug.
+      if (typeof (e as Partial<AppError> | null)?.status === 'number') {
+        return 'registered';
+      }
+      throw e;
     }
   }
 

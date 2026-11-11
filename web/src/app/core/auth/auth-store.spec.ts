@@ -71,6 +71,16 @@ describe('AuthStore', () => {
     expect(store.isAuthenticated()).toBe(false);
   });
 
+  it('register rethrows an unexpected non-HTTP error from the follow-up login', async () => {
+    api.register.mockReturnValue(of(user));
+    api.login.mockReturnValue(throwError(() => new TypeError('boom')));
+    const store = createStore();
+
+    await expect(store.register({ fullName: 'Ana', email: 'a@x.com', password: 'pw' })).rejects.toBeInstanceOf(
+      TypeError,
+    );
+  });
+
   it('logout clears the session', async () => {
     api.login.mockReturnValue(of({ accessToken: 'tok', expiresAt: future(), user }));
     const store = createStore();
