@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { AuthStore } from '../../../core/auth/auth-store';
+import { APP_CONFIG, AppConfig } from '../../../core/config/app-config';
 import { AppError } from '../../../core/http/app-error';
 import { Login } from './login';
 
@@ -8,9 +9,13 @@ describe('Login', () => {
   const store = { login: vi.fn<(r: unknown) => Promise<void>>() };
   let navigate: ReturnType<typeof vi.spyOn>;
 
-  function setup(inputs: Record<string, string> = {}) {
+  function setup(inputs: Record<string, string> = {}, config: Partial<AppConfig> = { demoAccount: true }) {
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: AuthStore, useValue: store }],
+      providers: [
+        provideRouter([]),
+        { provide: AuthStore, useValue: store },
+        { provide: APP_CONFIG, useValue: { usersApiUrl: '', tasksApiUrl: '', ...config } },
+      ],
     });
     navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     const fixture = TestBed.createComponent(Login);
@@ -51,6 +56,13 @@ describe('Login', () => {
 
     expect(email(el).value).toBe('demo@taskmanager.dev');
     expect(password(el).value).toBe('Demo123!');
+  });
+
+  it('Login: hides the demo account when config.demoAccount is not true', () => {
+    const { el } = setup({}, {});
+
+    expect(el.textContent).not.toContain('Demo account:');
+    expect(buttonByText(el, 'Use demo account')).toBeUndefined();
   });
 
   it('Login: on 401 shows "Invalid email or password.", keeps email, clears password, does not navigate', async () => {
