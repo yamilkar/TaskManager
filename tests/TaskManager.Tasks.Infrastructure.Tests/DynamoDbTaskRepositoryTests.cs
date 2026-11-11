@@ -123,6 +123,28 @@ public sealed class DynamoDbTaskRepositoryTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task DeleteAsync_existingTask_removesItAndReturnsTrue()
+    {
+        var task = NewTask(Guid.NewGuid());
+        await _repo.AddAsync(task, default);
+
+        (await _repo.DeleteAsync(task.UserId, task.Id, default)).ShouldBeTrue();
+
+        (await _repo.GetAsync(task.UserId, task.Id, default)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task DeleteAsync_sameIdUnderOtherUser_returnsFalseAndKeepsOwnerTask()
+    {
+        var task = NewTask(Guid.NewGuid());
+        await _repo.AddAsync(task, default);
+
+        (await _repo.DeleteAsync(Guid.NewGuid(), task.Id, default)).ShouldBeFalse();
+
+        (await _repo.GetAsync(task.UserId, task.Id, default)).ShouldNotBeNull();
+    }
+
+    [Fact]
     public async Task UpdateAsync_missingTask_returnsFalseAndCreatesNothing()
     {
         var task = NewTask(Guid.NewGuid());
