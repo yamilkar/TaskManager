@@ -23,6 +23,7 @@ public static class ApiDefaultsExtensions
 {
     public const string CorsPolicyName = "web";
     public const string ReadyTag = "ready";
+    public const string OpenApiEnabledKey = "OpenApi:Enabled";
 
     public static WebApplicationBuilder AddTaskManagerApiDefaults(this WebApplicationBuilder builder)
     {
@@ -120,7 +121,8 @@ public static class ApiDefaultsExtensions
         app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
         app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains(ReadyTag) });
 
-        if (app.Environment.IsDevelopment())
+        // API docs: always in Development; elsewhere only when OpenApi:Enabled is true (on in AWS for reviewers).
+        if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>(OpenApiEnabledKey))
         {
             app.MapOpenApi();
             app.MapScalarApiReference();

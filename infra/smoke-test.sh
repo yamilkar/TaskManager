@@ -55,7 +55,13 @@ expect_status "login rejects an unknown user" 401 -X POST "$users/api/v1/auth/lo
 # 6. The Tasks API requires a token.
 expect_status "tasks API requires a token" 401 "$tasks/api/v1/tasks"
 
-# 7. The browser on the site may call both APIs (CORS preflight).
+# 7. Reviewers can browse both APIs (Scalar UI over the OpenAPI document).
+for api in "$users" "$tasks"; do
+  expect_status "API docs page $api/scalar/v1" 200 "$api/scalar/v1"
+  expect_status "OpenAPI document $api/openapi/v1.json" 200 "$api/openapi/v1.json"
+done
+
+# 8. The browser on the site may call both APIs (CORS preflight).
 for api in "$users/api/v1/auth/login" "$tasks/api/v1/tasks"; do
   allowed="$(curl -s -o /dev/null -D - --max-time 30 -X OPTIONS "$api" \
     -H "Origin: $site" \

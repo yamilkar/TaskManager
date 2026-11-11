@@ -104,6 +104,21 @@ public sealed class TaskManagerStackTests
         });
     }
 
+    [Theory]
+    [InlineData("TaskManager.Users.Api")]
+    [InlineData("TaskManager.Tasks.Api")]
+    public void Stack_function_enablesTheApiDocs(string handler)
+    {
+        T.HasResourceProperties("AWS::Lambda::Function", new Props
+        {
+            ["Handler"] = handler,
+            ["Environment"] = new Props
+            {
+                ["Variables"] = Match.ObjectLike(new Props { ["OpenApi__Enabled"] = "true" }),
+            },
+        });
+    }
+
     [Fact]
     public void Stack_tasksFunction_seedsTheDemoTasksWithoutAnyPassword()
     {
