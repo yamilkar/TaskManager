@@ -1,7 +1,7 @@
 # Design Spec — Story 3: Describe my task fully
 
 - **Date:** 2026-11-10
-- **Status:** Draft — awaiting human review (open questions in section 8)
+- **Status:** Accepted (Q1–Q3 answered 2026-11-10: recommendations taken)
 - **Issue:** yamilkar/TaskManager#17 — *Story 3: Describe my task fully*
 - **Builds on:** [Story 1 foundation spec](2026-11-10-story-1-foundation-design.md) (field rules in 4.3, decision D9 for due dates). Story 2 (#16, paged task list) uses decisions D11–D15; this spec continues at D16.
 
@@ -83,9 +83,9 @@ Coverage gate (Domain and Application ≥ 80%) is unaffected or rises.
 
 ## 8. Open questions for the user
 
-1. **Q1 — Status choice on create (D17).** Recommendation: keep the select, defaulting to "To do". Alternative: remove `status` from the create form and have the server always create `ToDo` (strict reading of AC2); status would then only change through Story 4's edit.
-2. **Q2 — Past-date wording (D18).** Recommendation: "Due date cannot be in the past. Choose today or a later date." Alternative: keep the current "Due date cannot be in the past." (already tells *why*; fewer test changes).
-3. **Q3 — Server-side one-day tolerance (D19).** Recommendation: keep D9. Alternative: the client sends its local date (for example `X-Client-Date`) and the server checks against it when present; stricter, but a contract change and a value the client controls anyway.
+1. **Q1 — Status choice on create (D17).** Recommendation: keep the select, defaulting to "To do". Alternative: remove `status` from the create form and have the server always create `ToDo` (strict reading of AC2); status would then only change through Story 4's edit. **Answer:** recommendation accepted.
+2. **Q2 — Past-date wording (D18).** Recommendation: "Due date cannot be in the past. Choose today or a later date." Alternative: keep the current "Due date cannot be in the past." (already tells *why*; fewer test changes). **Answer:** recommendation accepted.
+3. **Q3 — Server-side one-day tolerance (D19).** Recommendation: keep D9. Alternative: the client sends its local date (for example `X-Client-Date`) and the server checks against it when present; stricter, but a contract change and a value the client controls anyway. **Answer:** recommendation accepted.
 
 ## 9. Out of scope
 
