@@ -1,9 +1,23 @@
-<mat-toolbar class="toolbar">
-  <span class="brand">TaskManager</span>
+<div class="backdrop" aria-hidden="true"></div>
+<header class="bar">
+  <app-brand-logo />
   <span class="spacer"></span>
-  <span class="user-name">{{ user()?.fullName }}</span>
-  <button matButton (click)="signOut()">Sign out</button>
-</mat-toolbar>
+  <app-theme-toggle />
+  <div class="user">
+    <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+    <span class="who">
+      <span class="user-name">{{ user()?.fullName }}</span>
+      <span class="email">{{ user()?.email }}</span>
+    </span>
+    <button type="button" class="sign-out" (click)="signOut()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10" />
+      </svg>
+      <span class="sign-out-label">Sign out</span>
+    </button>
+  </div>
+</header>
 <main class="content">
   <router-outlet />
 </main>

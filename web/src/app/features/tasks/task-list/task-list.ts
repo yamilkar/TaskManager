@@ -5,6 +5,7 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  computed,
   inject,
   input,
   output,
@@ -39,8 +40,21 @@ export class TaskList {
   /** The row asking "Delete this task?"; only one row confirms at a time. */
   protected readonly confirmingId = signal<string | null>(null);
 
+  /** The column shown on phones, where the board shows one status at a time. */
+  protected readonly selected = signal<TaskStatus>('ToDo');
+
+  /** Tasks per status column, each keeping the list's order (newest first). */
+  protected readonly columns = computed(() => {
+    const byStatus: Record<TaskStatus, Task[]> = { ToDo: [], InProgress: [], Done: [] };
+    for (const task of this.tasks()) {
+      byStatus[task.status].push(task);
+    }
+    return byStatus;
+  });
+
   protected readonly statuses = TASK_STATUSES;
   protected readonly labels = STATUS_LABELS;
+  protected readonly firstTaskMessage = 'No tasks yet — add your first one';
 
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);

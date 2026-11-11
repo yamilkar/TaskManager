@@ -1,0 +1,121 @@
+:host {
+  display: flex;
+  flex-wrap: wrap;
+  min-height: 100vh;
+}
+
+.hero {
+  flex: 1 1 560px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 32px clamp(20px, 5vw, 72px) 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  background: var(--tm-hero);
+  color: #ffffff;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pitch {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+
+  h1 {
+    margin: 0;
+    font-weight: 700;
+    font-size: clamp(32px, 4.2vw, 58px);
+    line-height: 1.06;
+    letter-spacing: -0.03em;
+  }
+
+  p {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--tm-hero-muted);
+  }
+}
+
+.preview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 600px;
+  padding: 14px;
+  border-radius: 20px;
+  background: var(--tm-hero-chip);
+  border: 1px solid var(--tm-hero-line);
+}
+
+// The preview keeps its light colours in both themes, like a screenshot.
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+
+  &.todo {
+    background: #eae3f8;
+    color: #3f2e63;
+  }
+  &.prog {
+    background: #fff1c7;
+    color: #6b4e00;
+  }
+  &.done {
+    background: #d7f0e4;
+    color: #14613f;
+  }
+}
+
+.col-title {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.card {
+  padding: 10px;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #1c1530;
+  font-size: 12.5px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(28, 21, 48, 0.1);
+}
+
+.panel {
+  flex: 1 1 440px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 40px clamp(16px, 5vw, 72px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Phones: a short hero, the card pulled up over its lower edge, no preview.
+@media (max-width: 599px) {
+  .hero {
+    padding-bottom: 72px;
+    gap: 24px;
+  }
+  .pitch p,
+  .preview {
+    display: none;
+  }
+  .panel {
+    margin-top: -56px;
+    padding-top: 0;
+    align-items: flex-start;
+  }
+}

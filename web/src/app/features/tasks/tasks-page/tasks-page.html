@@ -1,30 +1,70 @@
-<h1 class="heading">Tasks</h1>
-<div class="layout">
-  <app-task-form
-    [task]="editing()"
-    [submitting]="submitting()"
-    [serverErrors]="serverErrors()"
-    (submitted)="onSubmitted($event)"
-    (cancelled)="onCancelEdit()"
-  />
-  <section class="list" aria-label="Task list">
-    @if (formError(); as message) {
-      <p class="alert" role="alert">{{ message }}</p>
-    }
-    @if (store.error(); as error) {
-      <p class="alert" role="alert">{{ error.message }}</p>
-    } @else if (store.loading()) {
-      <p class="status" role="status">Loading tasks…</p>
-    } @else {
-      <app-task-list
-        [tasks]="store.tasks()"
-        [editingId]="editing()?.id ?? null"
-        [busy]="submitting()"
-        [pendingIds]="pending()"
-        (edit)="onEdit($event)"
-        (move)="onMove($event)"
-        (delete)="onDelete($event)"
-      />
-    }
-  </section>
+<div class="page-head">
+  <div class="intro">
+    <h1 class="tm-grad">Tasks</h1>
+    <p class="summary">
+      @for (status of statuses; track status) {
+        <span [class]="'chip status-' + status.toLowerCase()">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="label">{{ labels[status] }}</span>
+          <span class="value">{{ counts()[status] }}</span>
+        </span>
+      }
+    </p>
+  </div>
+  <button type="button" class="add-task" (click)="openAdd()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+      stroke-linecap="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+    Add task
+  </button>
 </div>
+
+<section class="list" aria-label="Task list">
+  @if (store.error(); as error) {
+    <p class="alert" role="alert">{{ error.message }}</p>
+  } @else if (store.loading()) {
+    <p class="status" role="status">Loading tasks…</p>
+  } @else {
+    <app-task-list
+      [tasks]="store.tasks()"
+      [editingId]="editing()?.id ?? null"
+      [busy]="submitting()"
+      [pendingIds]="pending()"
+      (edit)="onEdit($event)"
+      (move)="onMove($event)"
+      (delete)="onDelete($event)"
+    />
+  }
+</section>
+
+@if (dialogOpen()) {
+  <div class="overlay">
+    <div
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="task-form-title"
+      cdkTrapFocus
+      (keydown.escape)="closeDialog()"
+    >
+      <button type="button" class="close" aria-label="Close" [disabled]="submitting()" (click)="closeDialog()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+      @if (formError(); as message) {
+        <p class="alert form-alert" role="alert">{{ message }}</p>
+      }
+      <app-task-form
+        [task]="editing()"
+        [cancellable]="true"
+        [submitting]="submitting()"
+        [serverErrors]="serverErrors()"
+        (submitted)="onSubmitted($event)"
+        (cancelled)="closeDialog()"
+      />
+    </div>
+  </div>
+}

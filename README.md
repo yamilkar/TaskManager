@@ -12,6 +12,7 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Update a task, move it between To do, In progress and Done | Done (Story 4) |
 | Delete a task, with confirmation | Done (Story 5) |
 | Public deployment on AWS, CD on merge and on demand | Done (Story 9), live at https://d374jkz3g8l8ht.cloudfront.net |
+| Responsive board (To do, In progress, Done columns; status tabs on phones), light and dark theme | In review (Story 8, #23) |
 
 ## Project status
 
@@ -23,8 +24,9 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Story 4 (#18): update a task (edit, move between statuses) | Merged in #35 |
 | Story 5 (#19): delete a task, with confirmation | Merged in #36 |
 | Story 6 (#20): create my own account | Merged in #37 |
-| Story 9 (#38): use TaskManager over the internet (AWS deployment and CD) | Merged in #39; deployed 2026-11-11. Follow-up: API docs (Scalar) on the deployed APIs, in review on `feature/story-9-api-docs-online` |
-| Remaining stories (#21-#23, #34) | Pending |
+| Story 9 (#38): use TaskManager over the internet (AWS deployment and CD) | Merged in #39; deployed 2026-11-11. Follow-up: API docs (Scalar) on the deployed APIs, merged in #40 |
+| Story 8 (#23): use it on my phone (responsive redesign: brand landing page, status board, light and dark theme) | In review on `feature/story-8-use-it-on-my-phone` |
+| Remaining stories (#21, #22, #34) | Pending |
 
 Last updated: 2026-11-11
 

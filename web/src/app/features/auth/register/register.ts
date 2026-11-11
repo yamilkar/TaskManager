@@ -6,6 +6,7 @@ import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/for
 import { MatInput } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
 import { AuthStore } from '../../../core/auth/auth-store';
+import { AuthLayout } from '../../../layout/auth-layout/auth-layout';
 import { AppError } from '../../../core/http/app-error';
 import { FormError } from '../../../shared/ui/form-error/form-error';
 
@@ -19,6 +20,7 @@ function matchesPassword(control: AbstractControl): ValidationErrors | null {
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    AuthLayout,
     MatButton,
     MatCard,
     MatCardContent,

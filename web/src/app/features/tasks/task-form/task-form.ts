@@ -89,6 +89,8 @@ export class TaskForm {
   readonly task = input<Task | null>(null);
   readonly submitting = input(false);
   readonly serverErrors = input<Record<string, string[]>>({});
+  /** Shows Cancel in add mode too, for a form that sits in a dialog. Edit mode always has Cancel. */
+  readonly cancellable = input(false);
   readonly submitted = output<UpdateTaskRequest>();
   readonly cancelled = output<void>();
 
@@ -142,6 +144,10 @@ export class TaskForm {
       }
       this.cdr.markForCheck();
     });
+  }
+
+  focusTitle(): void {
+    this.titleInput().nativeElement.focus();
   }
 
   /** Empties the form; also used by the parent after a successful create. */

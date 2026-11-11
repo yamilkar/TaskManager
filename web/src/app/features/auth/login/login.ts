@@ -6,6 +6,7 @@ import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { Router, RouterLink } from '@angular/router';
 import { AuthStore } from '../../../core/auth/auth-store';
+import { AuthLayout } from '../../../layout/auth-layout/auth-layout';
 import { APP_CONFIG } from '../../../core/config/app-config';
 import { AppError } from '../../../core/http/app-error';
 
@@ -16,6 +17,7 @@ const INVALID_CREDENTIALS = 'Invalid email or password.';
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    AuthLayout,
     MatButton,
     MatCard,
     MatCardContent,

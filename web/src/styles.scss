@@ -1,39 +1,214 @@
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
+// Angular Material reads its colours from the CSS variables `mat.theme()` defines. They use light-dark(), so the
+// `color-scheme` on <html> (light, or dark when ThemeStore adds the `dark` class) switches them. The brand colours
+// below override the generated ones; the app's own styles use the `--tm-*` tokens.
 @use '@angular/material' as mat;
 
 html {
   height: 100%;
+  color-scheme: light;
   @include mat.theme(
     (
       color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
+        primary: mat.$violet-palette,
+        tertiary: mat.$yellow-palette,
       ),
-      typography: Roboto,
+      typography: (
+        plain-family: 'Inter, system-ui, sans-serif',
+        brand-family: "'Space Grotesk', Inter, sans-serif",
+      ),
       density: 0,
     )
   );
+
+  // Material, in the brand colours.
+  --mat-sys-primary: light-dark(#7b1fd1, #c9a6ff);
+  --mat-sys-on-primary: light-dark(#ffffff, #2a1556);
+  --mat-sys-surface: light-dark(#ffffff, #1d1530);
+  --mat-sys-surface-container: light-dark(#ffffff, #251c3a);
+  --mat-sys-on-surface: light-dark(#1c1530, #f2eefa);
+  --mat-sys-on-surface-variant: light-dark(#625a75, #b7aecb);
+  --mat-sys-outline: light-dark(#8e84a6, #6e6388);
+  --mat-sys-outline-variant: light-dark(#d9d0ea, #3d3256);
+  --mat-sys-error: light-dark(#a8321e, #ff8a75);
+
+  // App tokens, light theme.
+  --tm-bg: #f6f3fd;
+  --tm-bg-glow:
+    radial-gradient(900px 420px at 100% 0%, #ede4ff 0%, transparent 65%),
+    radial-gradient(700px 380px at 0% 100%, #fff4cc 0%, transparent 60%);
+  --tm-surface: #ffffff;
+  --tm-surface-2: #f1ecfb;
+  --tm-ink: #1c1530;
+  --tm-muted: #625a75;
+  --tm-body: #4f4763;
+  --tm-line: #d9d0ea;
+  --tm-divider: #efebf5;
+  --tm-link: #7b1fd1;
+  --tm-accent: #ffcc33;
+  --tm-on-accent: #2a1556;
+  --tm-hero:
+    radial-gradient(600px 340px at 92% 0%, rgba(52, 8, 104, 0.8), transparent 70%),
+    radial-gradient(760px 420px at 0% 100%, rgba(196, 170, 255, 0.6), transparent 65%),
+    linear-gradient(120deg, #6a1bb8 0%, #8b2fe0 100%);
+  --tm-hero-muted: #ede6ff;
+  --tm-hero-chip: rgba(255, 255, 255, 0.16);
+  --tm-hero-line: rgba(255, 255, 255, 0.3);
+  --tm-due-bg: #f1eafe;
+  --tm-due-fg: #6a1bb8;
+  --tm-todo-col: #eae3f8;
+  --tm-todo-dot: #8b7bae;
+  --tm-todo-head: #3f2e63;
+  --tm-todo-badge-bg: #ddd3f0;
+  --tm-todo-badge-fg: #3f2e63;
+  --tm-prog-col: #fff1c7;
+  --tm-prog-dot: #e0a800;
+  --tm-prog-head: #6b4e00;
+  --tm-prog-badge-bg: #ffe08a;
+  --tm-prog-badge-fg: #5e4500;
+  --tm-done-col: #d7f0e4;
+  --tm-done-dot: #1f9d63;
+  --tm-done-head: #14613f;
+  --tm-done-badge-bg: #bfe6d3;
+  --tm-done-badge-fg: #125a3a;
+  --tm-danger: #a8321e;
+  --tm-notice-bg: #d7f0e4;
+  --tm-notice-fg: #14613f;
+  --tm-demo-bg: #fff6d6;
+  --tm-demo-fg: #6b4e00;
+  --tm-demo-line: #e6c04a;
+  --tm-shadow: 0 1px 3px rgba(28, 21, 48, 0.1);
+  --tm-shadow-hover: 0 10px 24px rgba(28, 21, 48, 0.14);
+  --tm-shadow-lg: 0 24px 60px rgba(28, 21, 48, 0.28);
+  --tm-overlay: rgba(28, 21, 48, 0.5);
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --tm-bg: #120c1f;
+  --tm-bg-glow:
+    radial-gradient(900px 420px at 100% 0%, rgba(139, 47, 224, 0.22) 0%, transparent 65%),
+    radial-gradient(700px 380px at 0% 100%, rgba(255, 204, 51, 0.07) 0%, transparent 60%);
+  --tm-surface: #1d1530;
+  --tm-surface-2: #2a2042;
+  --tm-ink: #f2eefa;
+  --tm-muted: #b7aecb;
+  --tm-body: #cfc7e0;
+  --tm-line: #3d3256;
+  --tm-divider: #2e2443;
+  --tm-link: #c9a6ff;
+  --tm-hero:
+    radial-gradient(600px 340px at 92% 0%, rgba(255, 204, 51, 0.16), transparent 70%),
+    radial-gradient(760px 420px at 0% 100%, rgba(139, 47, 224, 0.55), transparent 65%),
+    linear-gradient(120deg, #1a122b 0%, #2a1748 100%);
+  --tm-hero-muted: #cfc0ec;
+  --tm-hero-chip: rgba(255, 255, 255, 0.08);
+  --tm-hero-line: rgba(255, 255, 255, 0.18);
+  --tm-due-bg: #2e2250;
+  --tm-due-fg: #d3b8ff;
+  --tm-todo-col: #211931;
+  --tm-todo-dot: #a797c9;
+  --tm-todo-head: #dccff7;
+  --tm-todo-badge-bg: #352a4f;
+  --tm-todo-badge-fg: #dccff7;
+  --tm-prog-col: #272012;
+  --tm-prog-dot: #ffcc33;
+  --tm-prog-head: #ffdb6e;
+  --tm-prog-badge-bg: #4a3b10;
+  --tm-prog-badge-fg: #ffe08a;
+  --tm-done-col: #11241c;
+  --tm-done-dot: #4ade9a;
+  --tm-done-head: #8fe8be;
+  --tm-done-badge-bg: #1c3d2f;
+  --tm-done-badge-fg: #a7f0cb;
+  --tm-danger: #ff8a75;
+  --tm-notice-bg: #11241c;
+  --tm-notice-fg: #8fe8be;
+  --tm-demo-bg: #2b2414;
+  --tm-demo-fg: #ffdb6e;
+  --tm-demo-line: #6b5518;
+  --tm-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --tm-shadow-hover: 0 10px 24px rgba(0, 0, 0, 0.5);
+  --tm-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.6);
+  --tm-overlay: rgba(0, 0, 0, 0.6);
 }
 
 body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
-  color-scheme: light;
-
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
-
-  // Reset the user agent margin.
   margin: 0;
-  height: 100%;
+  min-height: 100%;
+  background: var(--tm-bg-glow), var(--tm-bg);
+  background-attachment: fixed;
+  color: var(--tm-ink);
+  font: var(--mat-sys-body-medium);
+  font-family: Inter, system-ui, sans-serif;
 }
-/* You can add global styles to this file, and also import other style files */
+
+h1,
+h2,
+h3 {
+  font-family: 'Space Grotesk', Inter, sans-serif;
+}
+
+a {
+  color: var(--tm-link);
+  font-weight: 600;
+}
+
+// Gradient text for hero headings.
+.tm-grad {
+  background: linear-gradient(90deg, #ffffff 0%, #eadfff 50%, #ffe08a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+// The sign-in and register card (Login and Register share it).
+.auth-card.mat-mdc-card {
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
+  padding: 12px 8px 8px;
+  border-radius: 22px;
+  border: 1px solid var(--tm-line);
+  background: var(--tm-surface);
+  box-shadow: var(--tm-shadow-lg);
+
+  .mat-mdc-card-title {
+    font-family: 'Space Grotesk', Inter, sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 16px;
+  }
+
+  button[type='submit'] {
+    height: 50px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+
+  .alert {
+    color: var(--mat-sys-error);
+    margin: 8px 0 0;
+  }
+
+  .switch {
+    margin: 20px 0 4px;
+    text-align: center;
+    color: var(--tm-muted);
+  }
+}
+
+// Primary call to action in the brand gradient.
+.tm-primary.mat-mdc-unelevated-button:not(:disabled) {
+  background: linear-gradient(135deg, #7b1fd1, #8b2fe0);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(123, 31, 209, 0.3);
+}

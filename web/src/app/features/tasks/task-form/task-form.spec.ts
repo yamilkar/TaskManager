@@ -320,6 +320,27 @@ describe('TaskForm', () => {
       expect(emitted).toEqual([]);
     });
 
+    it('TaskForm_cancellableInAddMode_showsCancelThatEmitsCancelled', () => {
+      fixture.componentRef.setInput('cancellable', true);
+      fixture.detectChanges();
+      let cancelled = 0;
+      fixture.componentInstance.cancelled.subscribe(() => cancelled++);
+
+      cancelButton()!.click();
+
+      expect(cancelled).toBe(1);
+    });
+
+    it('TaskForm_focusTitle_movesFocusToTheTitleInput', () => {
+      document.body.appendChild(el);
+      try {
+        fixture.componentInstance.focusTitle();
+        expect(document.activeElement).toBe(q('input[name=title]'));
+      } finally {
+        el.remove();
+      }
+    });
+
     it('TaskForm: switching task replaces values and clears server errors', () => {
       edit(task());
       fixture.componentRef.setInput('serverErrors', { title: ['Server says no.'] });
