@@ -2,14 +2,26 @@
 
 A task-management application: users register, sign in, and create and list **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
 
-This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task"). Task update and delete are sub-project 2 (pending). AWS deployment and continuous deployment are sub-project 3 (pending).
+This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task", merged) and Story 2 ("See my tasks", in review). Further stories, such as task update and delete, are pending. AWS deployment and continuous deployment are sub-project 3 (pending).
 
 | Capability | Status |
 |---|---|
 | Register, sign in, `GET /users/me` | Done |
-| Create, list, get a task | Done |
-| Update and delete a task | Pending (sub-project 2) |
+| Create, list (newest first), get a task | Done |
+| Update and delete a task | Pending (later stories) |
 | AWS deployment and CD | Pending (sub-project 3) |
+
+## Project status
+
+| Work | Status |
+|---|---|
+| Sub-project 1: foundation and Story 1 (sign in, add my first task) | Merged in #29 (follow-ups #30, #31) |
+| Story 2 (#16): see my tasks, newest first, no pagination | In review in #32 |
+| Story 3 (#17): describe my task fully | Pending (criteria already met in code; evidence to add) |
+| Stories 4-9 (#18-#23) | Pending |
+| AWS deployment and CD (sub-project 3) | Pending |
+
+Last updated: 2026-11-10
 
 ## Architecture
 
@@ -188,4 +200,4 @@ docs/superpowers/     design spec and implementation plan
 - **Browser console and wrong passwords**: a failed login returns `401` by design, and the browser itself logs "Failed to load resource: 401" for it. The app code emits no warnings or errors; the browser's own network log line cannot be suppressed without breaking the API contract.
 - No pagination parameters on the list endpoint; no password reset.
 - **Rate limits are per instance and per IP**: behind a proxy such as CloudFront, set `ForwardedHeaders:KnownProxies` or `KnownNetworks` (spec section 11).
-- **Deployment pending**: AWS hosting and CD are sub-project 3. Task update and delete are sub-project 2.
+- **Deployment pending**: AWS hosting and CD are sub-project 3. Task update and delete are later stories.

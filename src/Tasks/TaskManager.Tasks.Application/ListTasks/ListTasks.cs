@@ -12,6 +12,7 @@ public sealed class ListTasksHandler(ITaskRepository tasks) : IQueryHandler<List
         var items = await tasks.ListByUserAsync(query.UserId, ct);
         IReadOnlyList<TaskResponse> responses = items
             .OrderByDescending(t => t.CreatedAt)
+            .ThenByDescending(t => t.Id)
             .Select(t => t.ToResponse())
             .ToList();
         return Result<IReadOnlyList<TaskResponse>>.Success(responses);

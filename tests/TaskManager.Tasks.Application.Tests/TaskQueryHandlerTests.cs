@@ -26,6 +26,19 @@ public class TaskQueryHandlerTests
     }
 
     [Fact]
+    public async Task ListTasks_HandleAsync_sameCreatedAt_ordersByIdDescending()
+    {
+        // The repository returns items in key order, so without a tie-break the list order could change between sign-ins.
+        var low = TaskItem.Rehydrate(Guid.Parse("00000000-0000-0000-0000-000000000001"), _userId, "low", null, TaskItemStatus.ToDo, null, Now, Now);
+        var high = TaskItem.Rehydrate(Guid.Parse("00000000-0000-0000-0000-000000000002"), _userId, "high", null, TaskItemStatus.ToDo, null, Now, Now);
+        _repo.ListByUserAsync(_userId, Arg.Any<CancellationToken>()).Returns([low, high]);
+
+        var result = await new ListTasksHandler(_repo).HandleAsync(new ListTasksQuery(_userId), default);
+
+        Assert.Equal(["high", "low"], result.Value.Select(t => t.Title));
+    }
+
+    [Fact]
     public async Task GetTask_HandleAsync_ownTask_returnsTask()
     {
         var task = TaskItem.Rehydrate(Guid.NewGuid(), _userId, "t", null, TaskItemStatus.ToDo, null, Now, Now);
