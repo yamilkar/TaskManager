@@ -211,7 +211,7 @@ Expected cost for this exercise: **$0 per month**.
 
 ### How deployment works
 
-- **On every merge to `main`**, the `changes` job works out which artifacts changed (`users-api`, `tasks-api`, `web`, `infra`; shared code and build settings count for both APIs) since the **last successful CI run on `main`**. Comparing against that run, not just the previous commit, keeps changes from runs that GitHub cancelled (quick successive merges) or that failed. If nothing deployable changed (for example a docs-only merge), nothing is deployed.
+- **On every merge to `main`**, the `changes` job works out which artifacts changed (`users-api`, `tasks-api`, `web`, `infra`; shared code and build settings count for both APIs) since the **last successful production deployment** (GitHub records one each time the `deploy` job runs). Comparing against what is actually deployed, not just the previous commit, keeps changes from runs that GitHub cancelled (quick successive merges), that failed, or that skipped the deploy (for example before the AWS setup). With no successful deployment yet, everything counts as changed. If nothing deployable changed (for example a docs-only merge), nothing is deployed.
 - Otherwise the `deploy` job runs after `backend`, `frontend` and `repo-hygiene` pass. It publishes both APIs deterministically, so unchanged code produces byte-identical output, builds the client and runs `cdk deploy`. CloudFormation then updates only the resources whose code or settings changed: an unchanged Lambda or client is left alone.
 - **Manual deploy**: Actions → CI → Run workflow on `main`. The tests run first, then everything is deployed (unchanged resources are still skipped).
 - After each deploy, `infra/smoke-test.sh` checks the live site (including a deep-link reload), `config.json`, both `/health/ready` endpoints, login and token rejection, and CORS from the site's origin. The job summary lists the site and API URLs.
@@ -249,7 +249,7 @@ gh variable set AWS_REGION --body us-east-1
 
 Check step 4 under Settings → Environments → `production` → Deployment branches: only `main`. Optionally add a required reviewer there to approve each deploy.
 
-Then run the **first deploy manually** (Actions → CI → Run workflow on `main`). Merges made before the setup ran CI successfully without deploying, so only a manual run is sure to deploy everything; after that, merges deploy what changed.
+Then run the first deploy manually (Actions → CI → Run workflow on `main`), or merge any change: with no successful deployment recorded yet, everything is deployed. After that, merges deploy what changed.
 
 ### Teardown
 

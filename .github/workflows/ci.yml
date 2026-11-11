@@ -22,9 +22,9 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           global-json-file: global.json
 
@@ -59,7 +59,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-report
           path: coverage-report
@@ -71,9 +71,9 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: lts/*
           cache: npm
@@ -87,7 +87,7 @@ jobs:
   repo-hygiene:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Reject symbolic links
         run: |
@@ -96,15 +96,18 @@ jobs:
             exit 1
           fi
 
+      - name: Test change detection
+        run: .github/scripts/changed-artifacts.test.sh
+
   changes:
-    # Which deployable artifacts changed since the last successful run on main (a manual run deploys everything).
-    # Diffing against that run, not github.event.before, keeps changes from runs that were cancelled or failed:
-    # GitHub drops queued runs when pushes land quickly, and a failed deploy fails its run.
+    # Which deployable artifacts changed since the last successful production deployment (a manual run deploys
+    # everything). Diffing against what is actually deployed, not github.event.before or the last green run, keeps
+    # changes from runs that were cancelled (GitHub drops queued runs), failed, or skipped the deploy job.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      actions: read # to find the last successful run
+      deployments: read # to find the last successful deployment
     outputs:
       users-api: ${{ steps.detect.outputs.users-api }}
       tasks-api: ${{ steps.detect.outputs.tasks-api }}
@@ -112,19 +115,18 @@ jobs:
       infra: ${{ steps.detect.outputs.infra }}
       deploy: ${{ steps.detect.outputs.deploy }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
-      - name: Find the last successful run on main
+      - name: Find the last successful production deployment
         id: base
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          sha=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --status success \
-            --limit 1 --json headSha --jq '.[0].headSha // ""')
-          echo "Last successful run on main: ${sha:-none (everything counts as changed)}"
+          sha=$(.github/scripts/last-deployed-sha.sh "$GITHUB_REPOSITORY" production)
+          echo "Last successful deployment: ${sha:-none (everything counts as changed)}"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Detect changed artifacts
@@ -154,13 +156,13 @@ jobs:
         -c Release -r linux-arm64 --self-contained false -p:PublishReadyToRun=true
         -p:ContinuousIntegrationBuild=true -p:IncludeSourceRevisionInInformationalVersion=false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           global-json-file: global.json
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: lts/*
           cache: npm
