@@ -27,9 +27,15 @@ export class AuthStore {
     this.setSession({ token: res.accessToken, expiresAt: res.expiresAt, user: res.user });
   }
 
-  async register(req: RegisterRequest): Promise<void> {
+  /** Rejects only if the account was not created; resolves 'registered' when the follow-up sign-in fails. */
+  async register(req: RegisterRequest): Promise<'signed-in' | 'registered'> {
     await firstValueFrom(this.api.register(req));
-    await this.login({ email: req.email, password: req.password });
+    try {
+      await this.login({ email: req.email, password: req.password });
+      return 'signed-in';
+    } catch {
+      return 'registered';
+    }
   }
 
   logout(): void {

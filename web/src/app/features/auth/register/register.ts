@@ -75,8 +75,8 @@ export class Register {
     this.errorMessage.set(null);
     const { fullName, email, password } = this.form.getRawValue();
     try {
-      await this.auth.register({ fullName, email, password });
-      await this.router.navigateByUrl('/tasks');
+      const outcome = await this.auth.register({ fullName, email, password });
+      await this.router.navigateByUrl(outcome === 'signed-in' ? '/tasks' : '/login?reason=registered');
     } catch (e) {
       this.showServerError(e as AppError);
     } finally {

@@ -5,7 +5,7 @@ import { AppError } from '../../../core/http/app-error';
 import { Register } from './register';
 
 describe('Register', () => {
-  const store = { register: vi.fn<(r: unknown) => Promise<void>>() };
+  const store = { register: vi.fn<(r: unknown) => Promise<'signed-in' | 'registered'>>() };
   let navigate: ReturnType<typeof vi.spyOn>;
 
   function setup() {
@@ -96,8 +96,19 @@ describe('Register', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it('Register: account created but not signed in navigates to /login?reason=registered', async () => {
+    store.register.mockResolvedValue('registered');
+    const { fixture, el } = setup();
+    fill(el);
+    fixture.detectChanges();
+    submit(el).click();
+    await fixture.whenStable();
+
+    expect(navigate).toHaveBeenCalledWith('/login?reason=registered');
+  });
+
   it('Register: success navigates to /tasks', async () => {
-    store.register.mockResolvedValue();
+    store.register.mockResolvedValue('signed-in');
     const { fixture, el } = setup();
     fill(el);
     fixture.detectChanges();

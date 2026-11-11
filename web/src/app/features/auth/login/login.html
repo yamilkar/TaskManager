@@ -5,6 +5,8 @@
   <mat-card-content>
     @if (reason() === 'expired') {
       <p class="notice">Your session has expired. Please sign in again.</p>
+    } @else if (reason() === 'registered') {
+      <p class="notice">Account created. Please sign in.</p>
     }
     @if (errorMessage(); as message) {
       <p class="alert" role="alert">{{ message }}</p>
