@@ -1,12 +1,34 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  FormGroupDirective,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { FormError } from '../../../shared/ui/form-error/form-error';
-import { CreateTaskRequest, TaskStatus } from '../data/task.model';
+import { Task, TaskStatus, UpdateTaskRequest } from '../data/task.model';
 
 /** Must stay identical to the server's `TaskItem.DueDateInPastMessage` (spec D18); both sides pin it in a test. */
 export const DUE_DATE_IN_PAST_MESSAGE = 'Due date cannot be in the past. Choose today or a later date.';
@@ -59,10 +81,16 @@ function notBeforeLocalToday(control: AbstractControl): ValidationErrors | null 
 })
 export class TaskForm {
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly injector = inject(Injector);
+  private readonly titleInput = viewChild.required<ElementRef<HTMLInputElement>>('titleInput');
+  private readonly formDirective = viewChild(FormGroupDirective);
 
+  /** The task being edited; null means the form adds a new task. */
+  readonly task = input<Task | null>(null);
   readonly submitting = input(false);
   readonly serverErrors = input<Record<string, string[]>>({});
-  readonly submitted = output<CreateTaskRequest>();
+  readonly submitted = output<UpdateTaskRequest>();
+  readonly cancelled = output<void>();
 
   protected readonly dueDateInPastMessage = DUE_DATE_IN_PAST_MESSAGE;
   protected readonly today = signal(localToday());
@@ -70,7 +98,8 @@ export class TaskForm {
     title: ['', [Validators.required, notBlank, maxTrimmedLength(200)]],
     description: ['', [maxTrimmedLength(2000)]],
     status: ['ToDo' as TaskStatus],
-    dueDate: ['', [notBeforeLocalToday]],
+    // Spec D24: the edited task's own due date stays valid even once it is in the past.
+    dueDate: ['', [(c: AbstractControl) => (c.value === this.task()?.dueDate ? null : notBeforeLocalToday(c))]],
   });
 
   constructor() {
@@ -84,6 +113,25 @@ export class TaskForm {
       }
     });
     effect(() => {
+      const task = this.task();
+      untracked(() => {
+        if (task) {
+          this.resetTo({
+            title: task.title,
+            description: task.description ?? '',
+            status: task.status,
+            dueDate: task.dueDate ?? '',
+          });
+          this.today.set(localToday());
+          this.cdr.markForCheck();
+          afterNextRender(() => this.titleInput().nativeElement.focus(), { injector: this.injector });
+        } else {
+          this.reset();
+        }
+      });
+    });
+
+    effect(() => {
       const controls: Record<string, AbstractControl> = { ...this.form.controls };
       for (const [field, messages] of Object.entries(this.serverErrors())) {
         const key = Object.keys(controls).find((k) => k.toLowerCase() === field.toLowerCase());
@@ -96,11 +144,26 @@ export class TaskForm {
     });
   }
 
-  /** Called by the parent after a successful create. */
+  /** Empties the form; also used by the parent after a successful create. */
   reset(): void {
-    this.form.reset({ title: '', description: '', status: 'ToDo', dueDate: '' });
+    this.resetTo({ title: '', description: '', status: 'ToDo', dueDate: '' });
     this.today.set(localToday());
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Resets through the form directive so its "submitted" flag clears too; Material shows errors on a
+   * submitted form, so a plain FormGroup.reset would leave "Title is required." on the empty form.
+   */
+  private resetTo(value: ReturnType<typeof this.form.getRawValue>): void {
+    // On the first run the directive does not exist yet, or its [formGroup] input is not bound yet;
+    // nothing has been submitted then, so a plain reset is enough.
+    const directive = this.formDirective();
+    if (directive?.form) {
+      directive.resetForm(value);
+    } else {
+      this.form.reset(value);
+    }
   }
 
   protected submit(): void {

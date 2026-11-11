@@ -67,4 +67,28 @@ public sealed class DynamoDbTaskRepository(IAmazonDynamoDB db, IOptions<DynamoDb
 
         return response.IsItemSet ? TaskItemMapper.FromItem(response.Item) : null;
     }
+
+    public async Task<bool> UpdateAsync(TaskItem task, CancellationToken ct)
+    {
+        try
+        {
+            // The condition stops a put from recreating a task that was deleted (spec D25).
+            // It deliberately does not compare UpdatedAt: concurrent edits of the same task are
+            // last-write-wins by design (spec D26), pinned by UpdateAsync_twoUpdatesFromSameVersion_lastWriteWins.
+            await db.PutItemAsync(
+                new PutItemRequest
+                {
+                    TableName = Table,
+                    Item = TaskItemMapper.ToItem(task),
+                    ConditionExpression = "attribute_exists(#id)",
+                    ExpressionAttributeNames = new Dictionary<string, string> { ["#id"] = "_id" },
+                },
+                ct);
+            return true;
+        }
+        catch (ConditionalCheckFailedException)
+        {
+            return false;
+        }
+    }
 }

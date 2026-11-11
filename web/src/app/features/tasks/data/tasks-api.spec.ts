@@ -50,4 +50,14 @@ describe('TasksApi', () => {
     req.flush(task);
     expect(result).toEqual(task);
   });
+
+  it('update PUTs the request body to /api/v1/tasks/{id}', () => {
+    let result: unknown;
+    const body = { title: 'B', description: null, status: 'Done' as const, dueDate: '2026-12-01' };
+    api.update('t1', body).subscribe((r) => (result = r));
+    const req = ctrl.expectOne({ method: 'PUT', url: 'http://tasks/api/v1/tasks/t1' });
+    expect(req.request.body).toEqual(body);
+    req.flush(task);
+    expect(result).toEqual(task);
+  });
 });

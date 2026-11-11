@@ -89,4 +89,73 @@ public sealed class DynamoDbTaskRepositoryTests : IAsyncLifetime
 
         await Should.ThrowAsync<ConditionalCheckFailedException>(() => _repo.AddAsync(task, default));
     }
+    private static TaskItem Changed(TaskItem t, Guid? userId = null, string title = "Changed", string? description = null, DateOnly? due = null) =>
+        TaskItem.Rehydrate(t.Id, userId ?? t.UserId, title, description, TaskItemStatus.Done, due, t.CreatedAt, t.CreatedAt.AddHours(1));
+
+    [Fact]
+    public async Task UpdateAsync_existingTask_replacesFieldsAndReturnsTrue()
+    {
+        var task = NewTask(Guid.NewGuid());
+        await _repo.AddAsync(task, default);
+
+        var replaced = await _repo.UpdateAsync(Changed(task, due: new DateOnly(2026, 12, 1)), default);
+
+        replaced.ShouldBeTrue();
+        var found = await _repo.GetAsync(task.UserId, task.Id, default);
+        found.ShouldNotBeNull();
+        found.Title.ShouldBe("Changed");
+        found.Status.ShouldBe(TaskItemStatus.Done);
+        found.DueDate.ShouldBe(new DateOnly(2026, 12, 1));
+        found.CreatedAt.ShouldBe(task.CreatedAt);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_clearedDescriptionAndDueDate_removesThemFromItem()
+    {
+        var task = TaskItem.Rehydrate(Guid.NewGuid(), Guid.NewGuid(), "Task", "d", TaskItemStatus.ToDo, new DateOnly(2026, 12, 1), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+        await _repo.AddAsync(task, default);
+
+        (await _repo.UpdateAsync(Changed(task), default)).ShouldBeTrue();
+
+        var found = await _repo.GetAsync(task.UserId, task.Id, default);
+        found!.Description.ShouldBeNull();
+        found.DueDate.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_missingTask_returnsFalseAndCreatesNothing()
+    {
+        var task = NewTask(Guid.NewGuid());
+
+        (await _repo.UpdateAsync(task, default)).ShouldBeFalse();
+
+        (await _repo.GetAsync(task.UserId, task.Id, default)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_sameIdUnderOtherUser_returnsFalseAndLeavesOwnerTaskUnchanged()
+    {
+        var owner = Guid.NewGuid();
+        var intruder = Guid.NewGuid();
+        var task = NewTask(owner);
+        await _repo.AddAsync(task, default);
+
+        (await _repo.UpdateAsync(Changed(task, userId: intruder), default)).ShouldBeFalse();
+
+        (await _repo.GetAsync(owner, task.Id, default))!.Title.ShouldBe("Task");
+        (await _repo.GetAsync(intruder, task.Id, default)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_twoUpdatesFromSameVersion_lastWriteWins()
+    {
+        // Spec D26: no optimistic concurrency. Both writers read the same version; both succeed and the second wins.
+        var task = NewTask(Guid.NewGuid());
+        await _repo.AddAsync(task, default);
+
+        (await _repo.UpdateAsync(Changed(task, title: "From tab A"), default)).ShouldBeTrue();
+        (await _repo.UpdateAsync(Changed(task, title: "From tab B"), default)).ShouldBeTrue();
+
+        (await _repo.GetAsync(task.UserId, task.Id, default))!.Title.ShouldBe("From tab B");
+    }
 }

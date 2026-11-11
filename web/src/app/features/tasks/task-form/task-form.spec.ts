@@ -1,11 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CreateTaskRequest } from '../data/task.model';
+import { Task, UpdateTaskRequest } from '../data/task.model';
 import { DUE_DATE_IN_PAST_MESSAGE, TaskForm } from './task-form';
 
 describe('TaskForm', () => {
   let fixture: ComponentFixture<TaskForm>;
   let el: HTMLElement;
-  let emitted: CreateTaskRequest[];
+  let emitted: UpdateTaskRequest[];
 
   const q = <T extends HTMLElement = HTMLInputElement>(sel: string) => el.querySelector<T>(sel)!;
   function type(input: HTMLInputElement | HTMLTextAreaElement, value: string) {
@@ -212,5 +212,143 @@ describe('TaskForm', () => {
     type(q('input[name=dueDate]'), '2099-12-31');
     fixture.componentInstance.reset();
     expect(fixture.componentInstance['form'].controls.dueDate.touched).toBe(false);
+  });
+
+  it('TaskForm: reset after a valid submit shows no validation errors', () => {
+    type(q('input[name=title]'), 'Done already');
+    submit();
+    fixture.componentInstance.reset();
+    fixture.detectChanges();
+    expect(emitted.length).toBe(1);
+    expect(el.textContent).not.toContain('Title is required.');
+  });
+
+  describe('edit mode', () => {
+    const task = (over: Partial<Task> = {}): Task => ({
+      id: 't1',
+      title: 'Old title',
+      description: 'Old description',
+      status: 'InProgress',
+      dueDate: '2099-06-01',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      ...over,
+    });
+    const edit = (t: Task | null) => {
+      fixture.componentRef.setInput('task', t);
+      fixture.detectChanges();
+    };
+    const heading = () => el.querySelector('mat-card-title')!.textContent!.trim();
+    const cancelButton = () =>
+      Array.from(el.querySelectorAll<HTMLButtonElement>('button[type=button]')).find(
+        (b) => b.textContent!.trim() === 'Cancel',
+      );
+
+    it('TaskForm: edit mode prefills fields and shows Edit task and Save changes', () => {
+      edit(task());
+      expect(q('input[name=title]').value).toBe('Old title');
+      expect(q<HTMLTextAreaElement>('textarea[name=description]').value).toBe('Old description');
+      expect(q<HTMLSelectElement>('select[name=status]').value).toBe('InProgress');
+      expect(q('input[name=dueDate]').value).toBe('2099-06-01');
+      expect(heading()).toBe('Edit task');
+      expect(q<HTMLButtonElement>('button[type=submit]').textContent!.trim()).toBe('Save changes');
+
+      edit(task({ id: 't2', description: null, dueDate: null }));
+      expect(q<HTMLTextAreaElement>('textarea[name=description]').value).toBe('');
+      expect(q('input[name=dueDate]').value).toBe('');
+    });
+
+    it('TaskForm: edit mode focuses the title input', async () => {
+      document.body.appendChild(el);
+      try {
+        edit(task());
+        await fixture.whenStable();
+        expect(document.activeElement).toBe(q('input[name=title]'));
+      } finally {
+        el.remove();
+      }
+    });
+
+    it('TaskForm: edit mode emits all fields on save', () => {
+      edit(task());
+      type(q('input[name=title]'), '  New title ');
+      submit();
+      expect(emitted).toEqual([
+        { title: 'New title', description: 'Old description', status: 'InProgress', dueDate: '2099-06-01' },
+      ]);
+    });
+
+    it("TaskForm: edit mode accepts the task's unchanged past due date", () => {
+      edit(task({ dueDate: '2000-01-01' }));
+      submit();
+      fixture.detectChanges();
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].dueDate).toBe('2000-01-01');
+      expect(el.textContent).not.toContain('cannot be in the past');
+    });
+
+    it('TaskForm: edit mode rejects a newly picked past date', () => {
+      edit(task({ dueDate: '2000-01-01' }));
+      type(q('input[name=dueDate]'), '2000-01-02');
+      submit();
+      fixture.detectChanges();
+      expect(emitted).toEqual([]);
+      expect(el.textContent).toContain('Due date cannot be in the past.');
+    });
+
+    it('TaskForm: edit mode shows the same validation messages', () => {
+      edit(task());
+      type(q('input[name=title]'), '');
+      submit();
+      fixture.detectChanges();
+      expect(el.textContent).toContain('Title is required.');
+
+      type(q('input[name=title]'), 'a'.repeat(201));
+      submit();
+      fixture.detectChanges();
+      expect(el.textContent).toContain('Title must be at most 200 characters.');
+      expect(emitted).toEqual([]);
+    });
+
+    it('TaskForm: Cancel emits cancelled and is hidden in add mode', () => {
+      expect(cancelButton()).toBeUndefined();
+      let cancelled = 0;
+      fixture.componentInstance.cancelled.subscribe(() => cancelled++);
+      edit(task());
+      cancelButton()!.click();
+      expect(cancelled).toBe(1);
+      expect(emitted).toEqual([]);
+    });
+
+    it('TaskForm: switching task replaces values and clears server errors', () => {
+      edit(task());
+      fixture.componentRef.setInput('serverErrors', { title: ['Server says no.'] });
+      fixture.detectChanges();
+      fixture.detectChanges();
+      expect(el.textContent).toContain('Server says no.');
+
+      edit(task({ id: 't2', title: 'Other task' }));
+      fixture.detectChanges();
+      expect(q('input[name=title]').value).toBe('Other task');
+      expect(el.textContent).not.toContain('Server says no.');
+    });
+
+    it('TaskForm: leaving edit mode after a save shows no validation errors', () => {
+      edit(task());
+      submit();
+      edit(null);
+      fixture.detectChanges();
+      expect(emitted.length).toBe(1);
+      expect(el.textContent).not.toContain('Title is required.');
+    });
+
+    it('TaskForm: setting task to null returns to an empty Add a task form', () => {
+      edit(task());
+      edit(null);
+      expect(heading()).toBe('Add a task');
+      expect(q('input[name=title]').value).toBe('');
+      expect(q<HTMLSelectElement>('select[name=status]').value).toBe('ToDo');
+      expect(q<HTMLButtonElement>('button[type=submit]').textContent!.trim()).toBe('Add task');
+    });
   });
 });

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { APP_CONFIG } from '../../../core/config/app-config';
-import { CreateTaskRequest, Task } from './task.model';
+import { CreateTaskRequest, Task, UpdateTaskRequest } from './task.model';
 
 @Injectable({ providedIn: 'root' })
 export class TasksApi {
@@ -15,5 +15,9 @@ export class TasksApi {
 
   create(req: CreateTaskRequest): Observable<Task> {
     return this.http.post<Task>(`${this.baseUrl}/api/v1/tasks`, req);
+  }
+
+  update(id: string, req: UpdateTaskRequest): Observable<Task> {
+    return this.http.put<Task>(`${this.baseUrl}/api/v1/tasks/${id}`, req);
   }
 }

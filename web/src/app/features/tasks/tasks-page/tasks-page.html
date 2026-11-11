@@ -1,9 +1,11 @@
 <h1 class="heading">Tasks</h1>
 <div class="layout">
   <app-task-form
+    [task]="editing()"
     [submitting]="submitting()"
     [serverErrors]="serverErrors()"
     (submitted)="onSubmitted($event)"
+    (cancelled)="onCancelEdit()"
   />
   <section class="list" aria-label="Task list">
     @if (formError(); as message) {
@@ -14,7 +16,14 @@
     } @else if (store.loading()) {
       <p class="status" role="status">Loading tasks…</p>
     } @else {
-      <app-task-list [tasks]="store.tasks()" />
+      <app-task-list
+        [tasks]="store.tasks()"
+        [editingId]="editing()?.id ?? null"
+        [busy]="submitting()"
+        [pendingIds]="pendingMoves()"
+        (edit)="onEdit($event)"
+        (move)="onMove($event)"
+      />
     }
   </section>
 </div>
