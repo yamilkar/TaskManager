@@ -47,6 +47,8 @@ public sealed class ApiConstruct : Construct
             ["Cors__AllowedOrigins__0"] = props.AllowedOrigin,
             // Idempotent demo data for reviewers: the demo user (Users API) and its tasks (Tasks API).
             ["Seed__Enabled"] = "true",
+            // Reviewers can browse the API with Scalar at /scalar/v1 (OpenAPI document at /openapi/v1.json).
+            ["OpenApi__Enabled"] = "true",
             // Spec section 11: CloudWatch extracts EMF metrics only from log lines that are pure JSON.
             ["AWS_LAMBDA_HANDLER_LOG_FORMAT"] = "Unformatted",
         };

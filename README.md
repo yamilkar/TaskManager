@@ -2,7 +2,7 @@
 
 A task-management application: users register, sign in, and create, list and update **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
 
-This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task") and Stories 2-5 ("See my tasks", "Describe my task fully", "Update a task", "Delete a task"), all merged. Story 6 ("Create my own account") is merged. Story 9 ("Use TaskManager over the internet": AWS deployment and continuous deployment) is in review, and the remaining stories are pending.
+This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task") and Stories 2-5 ("See my tasks", "Describe my task fully", "Update a task", "Delete a task"), all merged. Story 6 ("Create my own account") is merged. Story 9 ("Use TaskManager over the internet": AWS deployment and continuous deployment) is merged and live at https://d374jkz3g8l8ht.cloudfront.net, and the remaining stories are pending.
 
 | Capability | Status |
 |---|---|
@@ -11,7 +11,7 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Describe a task (description, status, due date) | Done (Story 3) |
 | Update a task, move it between To do, In progress and Done | Done (Story 4) |
 | Delete a task, with confirmation | Done (Story 5) |
-| Public deployment on AWS, CD on merge and on demand | In review (Story 9) |
+| Public deployment on AWS, CD on merge and on demand | Done (Story 9), live at https://d374jkz3g8l8ht.cloudfront.net |
 
 ## Project status
 
@@ -23,7 +23,7 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Story 4 (#18): update a task (edit, move between statuses) | Merged in #35 |
 | Story 5 (#19): delete a task, with confirmation | Merged in #36 |
 | Story 6 (#20): create my own account | Merged in #37 |
-| Story 9 (#38): use TaskManager over the internet (AWS deployment and CD) | In review on `feature/story-9-use-over-the-internet`; first deployment waits for the one-time AWS setup |
+| Story 9 (#38): use TaskManager over the internet (AWS deployment and CD) | Merged in #39; deployed 2026-11-11. Follow-up: API docs (Scalar) on the deployed APIs, in review on `feature/story-9-api-docs-online` |
 | Remaining stories (#21-#23, #34) | Pending |
 
 Last updated: 2026-11-11
@@ -139,6 +139,7 @@ Set through `appsettings*.json`, user-secrets or environment variables (`Section
 | | `DemoUserId`, `DemoEmail`, `DemoPassword`, `DemoFullName` | fixed demo user (`11111111-1111-1111-1111-111111111111`); `DemoPassword` defaults to the public `Demo123!` |
 | | `DemoPasswordParameterName` | unset locally; in AWS `/taskmanager/demo-password`, an SSM SecureString read at startup into `DemoPassword` (Users API) |
 | `Cors` | `AllowedOrigins` | `["http://localhost:4200"]` |
+| `OpenApi` | `Enabled` | `false`; `true` in AWS. Serves `/openapi/v1.json` and the Scalar UI at `/scalar/v1` outside Development (always on in Development) |
 | `RateLimiting` | `LoginPermitLimit`, `RegisterPermitLimit` | `5` per minute per IP each (Users API only) |
 | `ForwardedHeaders` | `KnownProxies`, `KnownNetworks` | unset = `X-Forwarded-For` ignored; set to the proxy IPs or CIDR ranges (CloudFront, ALB) to rate-limit and log the real client IP |
 
@@ -152,7 +153,7 @@ The client reads `web/public/config.json` at startup, so one build runs in any e
 
 ## API overview
 
-Interactive docs (Scalar, Development only): `http://localhost:5080/scalar/v1` and `http://localhost:5090/scalar/v1`.
+Interactive docs (Scalar): locally `http://localhost:5080/scalar/v1` and `http://localhost:5090/scalar/v1` (always on in Development), and `<api-url>/scalar/v1` on the deployed APIs (the API URLs are in the deploy job summary). Outside Development the docs are served only when `OpenApi:Enabled` is `true`, which the AWS stack sets; the OpenAPI document is at `/openapi/v1.json`.
 
 | API | Method and route | Auth | Notes |
 |---|---|---|---|
@@ -214,7 +215,7 @@ Expected cost for this exercise: **$0 per month**.
 - **On every merge to `main`**, the `changes` job works out which artifacts changed (`users-api`, `tasks-api`, `web`, `infra`; shared code and build settings count for both APIs) since the **last successful production deployment** (GitHub records one each time the `deploy` job runs). Comparing against what is actually deployed, not just the previous commit, keeps changes from runs that GitHub cancelled (quick successive merges), that failed, or that skipped the deploy (for example before the AWS setup). With no successful deployment yet, everything counts as changed. If nothing deployable changed (for example a docs-only merge), nothing is deployed.
 - Otherwise the `deploy` job runs after `backend`, `frontend` and `repo-hygiene` pass. It publishes both APIs deterministically, so unchanged code produces byte-identical output, builds the client and runs `cdk deploy`. CloudFormation then updates only the resources whose code or settings changed: an unchanged Lambda or client is left alone.
 - **Manual deploy**: Actions → CI → Run workflow on `main`. The tests run first, then everything is deployed (unchanged resources are still skipped).
-- After each deploy, `infra/smoke-test.sh` checks the live site (including a deep-link reload), `config.json`, both `/health/ready` endpoints, login and token rejection, and CORS from the site's origin. The job summary lists the site and API URLs.
+- After each deploy, `infra/smoke-test.sh` checks the live site (including a deep-link reload), `config.json`, both `/health/ready` endpoints, login and token rejection, both APIs' Scalar docs, and CORS from the site's origin. The job summary lists the site and API URLs.
 - **Demo data**: on each cold start the APIs make sure the demo user `demo@taskmanager.dev` (private password from SSM) and its sample tasks exist. The login page does not show the demo option; reviewers sign in with the credentials you give them.
 - Until the AWS setup below is done, the `deploy` job is skipped, so CI stays green.
 
