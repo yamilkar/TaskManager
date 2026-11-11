@@ -1,14 +1,15 @@
 # TaskManager
 
-A task-management application: users register, sign in, and create and list **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
+A task-management application: users register, sign in, and create, list and update **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
 
-This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task", merged) and Story 2 ("See my tasks", in review). Further stories, such as task update and delete, are pending. AWS deployment and continuous deployment are sub-project 3 (pending).
+This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task", merged) Story 2 ("See my tasks", merged) and Story 4 ("Update a task", in review). Further stories, such as task delete, are pending. AWS deployment and continuous deployment are sub-project 3 (pending).
 
 | Capability | Status |
 |---|---|
 | Register, sign in, `GET /users/me` | Done |
 | Create, list (newest first), get a task | Done |
-| Update and delete a task | Pending (later stories) |
+| Update a task, move it between To do, In progress and Done | In review (Story 4) |
+| Delete a task | Pending (Story 5) |
 | AWS deployment and CD | Pending (sub-project 3) |
 
 ## Project status
@@ -16,9 +17,10 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Work | Status |
 |---|---|
 | Sub-project 1: foundation and Story 1 (sign in, add my first task) | Merged in #29 (follow-ups #30, #31) |
-| Story 2 (#16): see my tasks, newest first, no pagination | In review in #32 |
+| Story 2 (#16): see my tasks, newest first, no pagination | Merged in #32 |
 | Story 3 (#17): describe my task fully | Pending (criteria already met in code; evidence to add) |
-| Stories 4-9 (#18-#23) | Pending |
+| Story 4 (#18): update a task (edit, move between statuses) | In review; spec and plan in `docs/superpowers/` |
+| Stories 5-9 (#19-#23) | Pending |
 | AWS deployment and CD (sub-project 3) | Pending |
 
 Last updated: 2026-11-10
@@ -151,6 +153,7 @@ Interactive docs (Scalar, Development only): `http://localhost:5080/scalar/v1` a
 | Tasks | `POST /api/v1/tasks` | JWT | `201`, `400`, `401` |
 | Tasks | `GET /api/v1/tasks` | JWT | caller's tasks, newest first |
 | Tasks | `GET /api/v1/tasks/{id}` | JWT | `404` for missing or another user's task |
+| Tasks | `PUT /api/v1/tasks/{id}` | JWT | `200`, `400` (same rules as create; `status` required), `401`, `404` |
 | Both | `GET /health`, `GET /health/ready` | anonymous | liveness and readiness (DynamoDB `DescribeTable`) |
 
 Errors are RFC 9457 ProblemDetails. Malformed JSON, a missing body or an unknown `status` return `400`, never `500`.
