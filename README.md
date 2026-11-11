@@ -153,7 +153,7 @@ The client reads `web/public/config.json` at startup, so one build runs in any e
 
 ## API overview
 
-Interactive docs (Scalar): locally `http://localhost:5080/scalar/v1` and `http://localhost:5090/scalar/v1` (always on in Development), and `<api-url>/scalar/v1` on the deployed APIs (the API URLs are in the deploy job summary). Outside Development the docs are served only when `OpenApi:Enabled` is `true`, which the AWS stack sets; the OpenAPI document is at `/openapi/v1.json`.
+Interactive docs (Scalar): locally `http://localhost:5080/scalar/v1` and `http://localhost:5090/scalar/v1` (always on in Development), and `<api-url>/scalar/v1` on the deployed APIs (the API URLs are in the deploy job summary). Outside Development the docs are served only when `OpenApi:Enabled` is `true`, which the AWS stack sets; the OpenAPI document is at `/openapi/v1.json`. The deployed docs are public by design, so reviewers can browse the API without signing in; every endpoint except register, login and health still requires a token.
 
 | API | Method and route | Auth | Notes |
 |---|---|---|---|
