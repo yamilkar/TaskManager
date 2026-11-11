@@ -136,6 +136,15 @@ describe('TaskForm', () => {
     expect(q<HTMLButtonElement>('button[type=submit]').disabled).toBe(true);
   });
 
+  it('TaskForm: reset after a valid submit shows no validation errors', () => {
+    type(q('input[name=title]'), 'Done already');
+    submit();
+    fixture.componentInstance.reset();
+    fixture.detectChanges();
+    expect(emitted.length).toBe(1);
+    expect(el.textContent).not.toContain('Title is required.');
+  });
+
   describe('edit mode', () => {
     const task = (over: Partial<Task> = {}): Task => ({
       id: 't1',
@@ -244,6 +253,15 @@ describe('TaskForm', () => {
       fixture.detectChanges();
       expect(q('input[name=title]').value).toBe('Other task');
       expect(el.textContent).not.toContain('Server says no.');
+    });
+
+    it('TaskForm: leaving edit mode after a save shows no validation errors', () => {
+      edit(task());
+      submit();
+      edit(null);
+      fixture.detectChanges();
+      expect(emitted.length).toBe(1);
+      expect(el.textContent).not.toContain('Title is required.');
     });
 
     it('TaskForm: setting task to null returns to an empty Add a task form', () => {

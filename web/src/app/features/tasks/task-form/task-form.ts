@@ -13,7 +13,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormGroupDirective, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
@@ -59,6 +59,7 @@ export class TaskForm {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly injector = inject(Injector);
   private readonly titleInput = viewChild.required<ElementRef<HTMLInputElement>>('titleInput');
+  private readonly formDirective = viewChild(FormGroupDirective);
 
   /** The task being edited; null means the form adds a new task. */
   readonly task = input<Task | null>(null);
@@ -81,7 +82,7 @@ export class TaskForm {
       const task = this.task();
       untracked(() => {
         if (task) {
-          this.form.reset({
+          this.resetTo({
             title: task.title,
             description: task.description ?? '',
             status: task.status,
@@ -111,9 +112,24 @@ export class TaskForm {
 
   /** Empties the form; also used by the parent after a successful create. */
   reset(): void {
-    this.form.reset({ title: '', description: '', status: 'ToDo', dueDate: '' });
+    this.resetTo({ title: '', description: '', status: 'ToDo', dueDate: '' });
     this.today.set(localToday());
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Resets through the form directive so its "submitted" flag clears too; Material shows errors on a
+   * submitted form, so a plain FormGroup.reset would leave "Title is required." on the empty form.
+   */
+  private resetTo(value: ReturnType<typeof this.form.getRawValue>): void {
+    // On the first run the directive does not exist yet, or its [formGroup] input is not bound yet;
+    // nothing has been submitted then, so a plain reset is enough.
+    const directive = this.formDirective();
+    if (directive?.form) {
+      directive.resetForm(value);
+    } else {
+      this.form.reset(value);
+    }
   }
 
   protected submit(): void {
