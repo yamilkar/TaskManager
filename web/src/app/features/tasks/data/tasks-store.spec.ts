@@ -19,6 +19,7 @@ describe('TasksStore', () => {
   const api = {
     list: vi.fn<() => Observable<Task[]>>(),
     create: vi.fn<(r: unknown) => Observable<Task>>(),
+    update: vi.fn<(id: string, r: unknown) => Observable<Task>>(),
   };
 
   function setup() {
@@ -31,6 +32,7 @@ describe('TasksStore', () => {
   beforeEach(() => {
     api.list.mockReset();
     api.create.mockReset();
+    api.update.mockReset();
   });
 
   it('TasksStore.load sets loading and stores tasks', async () => {
@@ -82,5 +84,36 @@ describe('TasksStore', () => {
 
     await expect(store.create({ title: '' })).rejects.toEqual(err);
     expect(store.tasks().map((t) => t.id)).toEqual(['1']);
+  });
+
+  const edit = { title: 'Changed', description: null, status: 'Done' as const, dueDate: null };
+
+  it('TasksStore.update replaces the task in place', async () => {
+    api.list.mockReturnValue(of([mk('a'), mk('b'), mk('c')]));
+    api.update.mockReturnValue(of({ ...mk('b'), title: 'Changed', status: 'Done' }));
+    const store = setup();
+    await store.load();
+
+    const updated = await store.update('b', edit);
+
+    expect(api.update).toHaveBeenCalledWith('b', edit);
+    expect(updated.title).toBe('Changed');
+    expect(store.tasks().map((t) => [t.id, t.title])).toEqual([
+      ['a', 'Task a'],
+      ['b', 'Changed'],
+      ['c', 'Task c'],
+    ]);
+  });
+
+  it('TasksStore.update rethrows failures and leaves the list unchanged', async () => {
+    const err: AppError = { status: 400, message: 'bad', fieldErrors: { title: ['x'] } };
+    api.list.mockReturnValue(of([mk('a'), mk('b'), mk('c')]));
+    api.update.mockReturnValue(throwError(() => err));
+    const store = setup();
+    await store.load();
+    const before = store.tasks();
+
+    await expect(store.update('b', edit)).rejects.toEqual(err);
+    expect(store.tasks()).toBe(before);
   });
 });

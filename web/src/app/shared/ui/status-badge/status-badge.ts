@@ -1,11 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { TaskStatus } from '../../../features/tasks/data/task.model';
-
-const LABELS: Record<TaskStatus, string> = {
-  ToDo: 'To do',
-  InProgress: 'In progress',
-  Done: 'Done',
-};
+import { STATUS_LABELS, TaskStatus } from '../../../features/tasks/data/task.model';
 
 @Component({
   selector: 'app-status-badge',
@@ -33,5 +27,5 @@ const LABELS: Record<TaskStatus, string> = {
 })
 export class StatusBadge {
   readonly status = input.required<TaskStatus>();
-  protected readonly label = computed(() => LABELS[this.status()]);
+  protected readonly label = computed(() => STATUS_LABELS[this.status()]);
 }

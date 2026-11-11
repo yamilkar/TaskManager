@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { AppError } from '../../../core/http/app-error';
-import { CreateTaskRequest, Task } from './task.model';
+import { CreateTaskRequest, Task, UpdateTaskRequest } from './task.model';
 import { TasksApi } from './tasks-api';
 
 /** Provided by `TasksPage`, so its state lives and dies with the page. */
@@ -32,6 +32,13 @@ export class TasksStore {
   async create(req: CreateTaskRequest): Promise<Task> {
     const task = await firstValueFrom(this.api.create(req));
     this.tasksState.update((tasks) => [task, ...tasks]);
+    return task;
+  }
+
+  /** Saves the task and swaps it in at the same position; on failure the list is left as it was. */
+  async update(id: string, req: UpdateTaskRequest): Promise<Task> {
+    const task = await firstValueFrom(this.api.update(id, req));
+    this.tasksState.update((tasks) => tasks.map((t) => (t.id === id ? task : t)));
     return task;
   }
 }
