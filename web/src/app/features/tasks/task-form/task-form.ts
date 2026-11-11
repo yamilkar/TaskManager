@@ -1,11 +1,25 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, inject, input, output, signal } from '@angular/core';
-import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
-import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { FormError } from '../../../shared/ui/form-error/form-error';
 import { CreateTaskRequest, TaskStatus } from '../data/task.model';
+
+export const DUE_DATE_IN_PAST_MESSAGE = 'Due date cannot be in the past. Choose today or a later date.';
+
+function maxTrimmedLength(max: number): ValidatorFn {
+  return (control) => {
+    const value = control.value;
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const actualLength = value.trim().length;
+    return actualLength > max ? { maxlength: { requiredLength: max, actualLength } } : null;
+  };
+}
 
 function notBlank(control: AbstractControl): ValidationErrors | null {
   return typeof control.value === 'string' && control.value.trim() === '' ? { required: true } : null;
@@ -34,6 +48,7 @@ function notBeforeLocalToday(control: AbstractControl): ValidationErrors | null 
     MatFormField,
     MatLabel,
     MatError,
+    MatHint,
     MatInput,
     FormError,
   ],
@@ -48,15 +63,22 @@ export class TaskForm {
   readonly serverErrors = input<Record<string, string[]>>({});
   readonly submitted = output<CreateTaskRequest>();
 
+  protected readonly dueDateInPastMessage = DUE_DATE_IN_PAST_MESSAGE;
   protected readonly today = signal(localToday());
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    title: ['', [Validators.required, notBlank, Validators.maxLength(200)]],
-    description: ['', [Validators.maxLength(2000)]],
+    title: ['', [Validators.required, notBlank, maxTrimmedLength(200)]],
+    description: ['', [maxTrimmedLength(2000)]],
     status: ['ToDo' as TaskStatus],
     dueDate: ['', [notBeforeLocalToday]],
   });
 
   constructor() {
+    this.form.controls.dueDate.valueChanges.pipe(takeUntilDestroyed()).subscribe((value) => {
+      if (typeof value === 'string' && value !== '') {
+        this.form.controls.dueDate.markAsTouched();
+        this.cdr.markForCheck();
+      }
+    });
     effect(() => {
       const controls: Record<string, AbstractControl> = { ...this.form.controls };
       for (const [field, messages] of Object.entries(this.serverErrors())) {

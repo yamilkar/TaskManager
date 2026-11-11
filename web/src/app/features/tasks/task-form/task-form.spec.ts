@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CreateTaskRequest } from '../data/task.model';
-import { TaskForm } from './task-form';
+import { DUE_DATE_IN_PAST_MESSAGE, TaskForm } from './task-form';
 
 describe('TaskForm', () => {
   let fixture: ComponentFixture<TaskForm>;
@@ -83,7 +83,7 @@ describe('TaskForm', () => {
     submit();
     fixture.detectChanges();
     expect(emitted).toEqual([]);
-    expect(el.textContent).toContain('Due date cannot be in the past.');
+    expect(el.textContent).toContain(DUE_DATE_IN_PAST_MESSAGE);
   });
 
   it('TaskForm: accepts local today as due date', () => {
@@ -134,5 +134,57 @@ describe('TaskForm', () => {
     fixture.componentRef.setInput('submitting', true);
     fixture.detectChanges();
     expect(q<HTMLButtonElement>('button[type=submit]').disabled).toBe(true);
+  });
+
+  it('TaskForm: status defaults to To do', () => {
+    const select = q<HTMLSelectElement>('select[name=status]');
+    expect(select.value).toBe('ToDo');
+    expect(select.selectedOptions[0].textContent?.trim()).toBe('To do');
+  });
+
+  it('TaskForm: shows the past-date reason as soon as a past date is entered', () => {
+    type(q('input[name=dueDate]'), '2000-01-01');
+    fixture.detectChanges();
+    expect(el.textContent).toContain(DUE_DATE_IN_PAST_MESSAGE);
+  });
+
+  it('TaskForm: past-date message matches the server text', () => {
+    expect(DUE_DATE_IN_PAST_MESSAGE).toBe('Due date cannot be in the past. Choose today or a later date.');
+  });
+
+  it('TaskForm: due date shows the today-or-later hint', () => {
+    expect(el.querySelector('mat-hint')!.textContent).toContain('Today or later.');
+  });
+
+  it('TaskForm: clearing a past due date clears the error', () => {
+    type(q('input[name=dueDate]'), '2000-01-01');
+    type(q('input[name=dueDate]'), '');
+    type(q('input[name=title]'), 'T');
+    submit();
+    fixture.detectChanges();
+    expect(emitted.length).toBe(1);
+    expect(emitted[0].dueDate).toBeNull();
+    expect(el.textContent).not.toContain(DUE_DATE_IN_PAST_MESSAGE);
+  });
+
+  it('TaskForm: accepts 2000-char description with surrounding whitespace', () => {
+    type(q('input[name=title]'), 'T');
+    type(q<HTMLTextAreaElement>('textarea[name=description]'), '  ' + 'a'.repeat(2000) + '\n');
+    submit();
+    expect(emitted.length).toBe(1);
+    expect(emitted[0].description!.length).toBe(2000);
+  });
+
+  it('TaskForm: accepts 200-char title with surrounding whitespace', () => {
+    type(q('input[name=title]'), '  ' + 'a'.repeat(200) + '\n');
+    submit();
+    expect(emitted.length).toBe(1);
+    expect(emitted[0].title.length).toBe(200);
+  });
+
+  it('TaskForm: reset leaves the due date untouched', () => {
+    type(q('input[name=dueDate]'), '2099-12-31');
+    fixture.componentInstance.reset();
+    expect(fixture.componentInstance['form'].controls.dueDate.touched).toBe(false);
   });
 });
