@@ -224,7 +224,8 @@ You need an AWS account and the AWS CLI signed in as an administrator (for examp
 
 ```bash
 # 1. The JWT signing key and the demo user's private password (SecureStrings; CloudFormation cannot create these).
-#    Choose the demo password yourself and share it only with reviewers; the public Demo123! is refused.
+#    Choose the demo password yourself (8-128 characters, at least one letter and one digit, like any account)
+#    and share it only with reviewers; the public Demo123! or a weaker password stops the Users API at startup.
 aws ssm put-parameter --region us-east-1 --name /taskmanager/jwt-signing-key --type SecureString --value "$(openssl rand -base64 48)"
 aws ssm put-parameter --region us-east-1 --name /taskmanager/demo-password --type SecureString --value '<your private demo password>'
 

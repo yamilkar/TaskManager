@@ -65,6 +65,20 @@ public sealed class UsersDatabaseBootstrapperTests
         await _repo.DidNotReceiveWithAnyArgs().TryAddAsync(default!, default);
     }
 
+    [Theory]
+    [InlineData("abc123")]
+    [InlineData("onlyletters")]
+    [InlineData("1234567890")]
+    public async Task StartAsync_seedEnabledOutsideDevelopmentWithWeakPassword_failsLikeRegistrationWould(string weak)
+    {
+        var ex = await Should.ThrowAsync<InvalidOperationException>(
+            () => Create("Production", seedEnabled: true, weak).StartAsync(default));
+
+        ex.Message.ShouldContain("Seed:DemoPassword");
+        ex.Message.ShouldNotContain(weak);
+        await _repo.DidNotReceiveWithAnyArgs().TryAddAsync(default!, default);
+    }
+
     [Fact]
     public async Task StartAsync_seedEnabledOutsideDevelopmentWithPrivatePassword_seedsDemoUser()
     {
