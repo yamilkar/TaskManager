@@ -24,11 +24,13 @@ public sealed class UsersDatabaseBootstrapper(
 
         if (seedOptions.Value.Enabled)
         {
-            // The demo password is public (README), so never create it in a deployed environment.
-            if (!environment.IsDevelopment())
+            // The default demo password is public (README), so a deployed environment must bring its own, private one.
+            var password = seedOptions.Value.DemoPassword;
+            if (!environment.IsDevelopment() &&
+                (string.IsNullOrWhiteSpace(password) || password == UserSeedOptions.PublicDemoPassword))
             {
                 throw new InvalidOperationException(
-                    $"{UserSeedOptions.SectionName}:Enabled is only allowed in Development; the demo credentials are public.");
+                    $"{UserSeedOptions.SectionName}:DemoPassword must be set to a private value outside Development; the default demo password is public.");
             }
 
             await seeder.SeedAsync(cancellationToken);

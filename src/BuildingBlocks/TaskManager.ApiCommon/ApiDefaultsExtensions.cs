@@ -28,7 +28,8 @@ public static class ApiDefaultsExtensions
     {
         var services = builder.Services;
 
-        builder.Configuration.AddJwtSigningKeyFromSsm(() => new AmazonSimpleSystemsManagementClient());
+        builder.Configuration.AddFromSsm(
+            () => new AmazonSimpleSystemsManagementClient(), SsmConfiguration.JwtSigningKeyParameterNameKey, "Jwt:SigningKey");
 
         builder.Host.UseSerilog((context, _, logger) => logger
             .ReadFrom.Configuration(context.Configuration)

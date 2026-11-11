@@ -14,11 +14,19 @@ public sealed class UsersDatabaseBootstrapperTests
 {
     private readonly IUserRepository _repo = Substitute.For<IUserRepository>();
 
-    private UsersDatabaseBootstrapper Create(string environment, bool seedEnabled)
+    private const string PrivatePassword = "a-Private-demo-passw0rd";
+
+    private UsersDatabaseBootstrapper Create(string environment, bool seedEnabled, string? demoPassword = null)
     {
         var env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName.Returns(environment);
-        var seedOptions = Options.Create(new UserSeedOptions { Enabled = seedEnabled });
+        var seed = new UserSeedOptions { Enabled = seedEnabled };
+        if (demoPassword is not null)
+        {
+            seed.DemoPassword = demoPassword;
+        }
+
+        var seedOptions = Options.Create(seed);
         var hasher = Substitute.For<IPasswordHasher>();
         hasher.Hash(Arg.Any<string>()).Returns("HASH");
         var seeder = new UserSeeder(_repo, hasher, new FixedClock(DateTimeOffset.UtcNow), seedOptions);
@@ -42,14 +50,29 @@ public sealed class UsersDatabaseBootstrapperTests
     }
 
     [Theory]
-    [InlineData("Production")]
-    [InlineData("Staging")]
-    public async Task StartAsync_seedEnabledOutsideDevelopment_failsWithoutCreatingDemoUser(string environment)
+    [InlineData("Production", null)]
+    [InlineData("Staging", null)]
+    [InlineData("Production", UserSeedOptions.PublicDemoPassword)]
+    [InlineData("Production", "")]
+    [InlineData("Production", "   ")]
+    public async Task StartAsync_seedEnabledOutsideDevelopmentWithPublicOrBlankPassword_failsWithoutCreatingDemoUser(
+        string environment, string? demoPassword)
     {
-        var ex = await Should.ThrowAsync<InvalidOperationException>(() => Create(environment, seedEnabled: true).StartAsync(default));
+        var ex = await Should.ThrowAsync<InvalidOperationException>(
+            () => Create(environment, seedEnabled: true, demoPassword).StartAsync(default));
 
-        ex.Message.ShouldContain("Seed:Enabled");
+        ex.Message.ShouldContain("Seed:DemoPassword");
         await _repo.DidNotReceiveWithAnyArgs().TryAddAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task StartAsync_seedEnabledOutsideDevelopmentWithPrivatePassword_seedsDemoUser()
+    {
+        _repo.TryAddAsync(Arg.Any<User>(), Arg.Any<CancellationToken>()).Returns(AddUserResult.Added);
+
+        await Create("Production", seedEnabled: true, PrivatePassword).StartAsync(default);
+
+        await _repo.Received(1).TryAddAsync(Arg.Any<User>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
