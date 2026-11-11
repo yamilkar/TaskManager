@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Manual deploy: Actions → CI → Run workflow (on main). Runs the tests first, then deploys everything.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,6 +16,7 @@ concurrency:
 
 env:
   COVERAGE_THRESHOLD: 80
+  CDK_CLI_VERSION: 2.1148.1
 
 jobs:
   backend:
@@ -92,3 +95,95 @@ jobs:
             echo "Symbolic links are not allowed in this repository."
             exit 1
           fi
+
+  changes:
+    # Which deployable artifacts this push changed (a manual run deploys everything).
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      users-api: ${{ steps.detect.outputs.users-api }}
+      tasks-api: ${{ steps.detect.outputs.tasks-api }}
+      web: ${{ steps.detect.outputs.web }}
+      infra: ${{ steps.detect.outputs.infra }}
+      deploy: ${{ steps.detect.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed artifacts
+        id: detect
+        env:
+          BASE: ${{ github.event_name == 'push' && github.event.before || '' }}
+        run: .github/scripts/changed-artifacts.sh "$BASE" "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"
+
+  deploy:
+    # Green main only: after a merge that changed a deployable artifact, or on a manual run.
+    # Skipped until the AWS deploy role is configured (repository variable AWS_DEPLOY_ROLE_ARN).
+    needs: [changes, backend, frontend, repo-hygiene]
+    if: >-
+      github.ref == 'refs/heads/main' && vars.AWS_DEPLOY_ROLE_ARN != '' &&
+      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.deploy == 'true')
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # OIDC sign-in to AWS: no AWS keys are stored in GitHub.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      # Byte-identical output for unchanged code, so CloudFormation leaves an unchanged Lambda alone.
+      PUBLISH_ARGS: >-
+        -c Release -r linux-arm64 --self-contained false -p:PublishReadyToRun=true
+        -p:ContinuousIntegrationBuild=true -p:IncludeSourceRevisionInInformationalVersion=false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Publish the Users API
+        run: dotnet publish src/Users/TaskManager.Users.Api $PUBLISH_ARGS -o artifacts/users-api
+
+      - name: Publish the Tasks API
+        run: dotnet publish src/Tasks/TaskManager.Tasks.Api $PUBLISH_ARGS -o artifacts/tasks-api
+
+      - name: Build the web client
+        working-directory: web
+        run: npm ci && npx ng build
+
+      - name: Sign in to AWS
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy (only resources whose code or settings changed are updated)
+        working-directory: infra
+        run: npx --yes "aws-cdk@$CDK_CLI_VERSION" deploy TaskManager --require-approval never --outputs-file cdk-outputs.json
+
+      - name: Smoke test the deployment
+        run: |
+          site=$(jq -r .TaskManager.SiteUrl infra/cdk-outputs.json)
+          users=$(jq -r .TaskManager.UsersApiUrl infra/cdk-outputs.json)
+          tasks=$(jq -r .TaskManager.TasksApiUrl infra/cdk-outputs.json)
+          infra/smoke-test.sh "$site" "$users" "$tasks"
+          {
+            echo "### Deployed"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Site | $site |"
+            echo "| Users API | $users |"
+            echo "| Tasks API | $tasks |"
+            echo ""
+            echo "Changed in this run (${{ github.event_name }}): users-api=${{ needs.changes.outputs.users-api }}, tasks-api=${{ needs.changes.outputs.tasks-api }}, web=${{ needs.changes.outputs.web }}, infra=${{ needs.changes.outputs.infra }}"
+          } >> "$GITHUB_STEP_SUMMARY"
