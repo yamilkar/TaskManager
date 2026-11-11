@@ -2,12 +2,13 @@
 
 A task-management application: users register, sign in, and create, list and update **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
 
-This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task", merged) Story 2 ("See my tasks", merged) and Story 4 ("Update a task", in review). Further stories, such as task delete, are pending. AWS deployment and continuous deployment are sub-project 3 (pending).
+This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task"), Story 2 ("See my tasks") and Story 3 ("Describe my task fully"), all merged, and Story 4 ("Update a task", in review). Further stories, such as task delete, are pending. AWS deployment and continuous deployment are sub-project 3 (pending).
 
 | Capability | Status |
 |---|---|
 | Register, sign in, `GET /users/me` | Done |
 | Create, list (newest first), get a task | Done |
+| Describe a task (description, status, due date) | Done (Story 3) |
 | Update a task, move it between To do, In progress and Done | In review (Story 4) |
 | Delete a task | Pending (Story 5) |
 | AWS deployment and CD | Pending (sub-project 3) |
@@ -18,8 +19,8 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 |---|---|
 | Sub-project 1: foundation and Story 1 (sign in, add my first task) | Merged in #29 (follow-ups #30, #31) |
 | Story 2 (#16): see my tasks, newest first, no pagination | Merged in #32 |
-| Story 3 (#17): describe my task fully | Pending (criteria already met in code; evidence to add) |
-| Story 4 (#18): update a task (edit, move between statuses) | In review; spec and plan in `docs/superpowers/` |
+| Story 3 (#17): describe my task fully | Merged in #33 |
+| Story 4 (#18): update a task (edit, move between statuses) | In review in #35 |
 | Stories 5-9 (#19-#23) | Pending |
 | AWS deployment and CD (sub-project 3) | Pending |
 

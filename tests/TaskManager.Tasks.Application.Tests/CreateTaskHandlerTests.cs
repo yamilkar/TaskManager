@@ -86,4 +86,26 @@ public class CreateTaskHandlerTests
 
         _metrics.Received(1).Increment(TasksMetrics.TaskCreated);
     }
+
+    [Fact]
+    public async Task HandleAsync_pastDueDate_returnsDueDateErrorAndDoesNotPersist()
+    {
+        var result = await Sut.HandleAsync(Command("t", dueDate: new DateOnly(2026, 11, 8)), default);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorType.Validation, result.Error!.Type);
+        Assert.Contains(TaskItem.DueDateInPastMessage, result.Error.FieldErrors!["dueDate"]);
+        await _repo.DidNotReceive().AddAsync(Arg.Any<TaskItem>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task HandleAsync_descriptionStatusAndDueDate_areReturnedInResponse()
+    {
+        var result = await Sut.HandleAsync(Command("t", "Done", new DateOnly(2026, 12, 1), "  notes "), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("notes", result.Value.Description);
+        Assert.Equal("Done", result.Value.Status);
+        Assert.Equal(new DateOnly(2026, 12, 1), result.Value.DueDate);
+    }
 }
