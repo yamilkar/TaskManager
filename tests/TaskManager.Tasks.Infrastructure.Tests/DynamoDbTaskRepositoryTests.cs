@@ -145,4 +145,17 @@ public sealed class DynamoDbTaskRepositoryTests : IAsyncLifetime
         (await _repo.GetAsync(owner, task.Id, default))!.Title.ShouldBe("Task");
         (await _repo.GetAsync(intruder, task.Id, default)).ShouldBeNull();
     }
+
+    [Fact]
+    public async Task UpdateAsync_twoUpdatesFromSameVersion_lastWriteWins()
+    {
+        // Spec D26: no optimistic concurrency. Both writers read the same version; both succeed and the second wins.
+        var task = NewTask(Guid.NewGuid());
+        await _repo.AddAsync(task, default);
+
+        (await _repo.UpdateAsync(Changed(task, title: "From tab A"), default)).ShouldBeTrue();
+        (await _repo.UpdateAsync(Changed(task, title: "From tab B"), default)).ShouldBeTrue();
+
+        (await _repo.GetAsync(task.UserId, task.Id, default))!.Title.ShouldBe("From tab B");
+    }
 }

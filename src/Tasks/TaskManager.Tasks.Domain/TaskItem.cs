@@ -119,6 +119,11 @@ public sealed class TaskItem
             errors["description"] = ["Description must be at most 2000 characters."];
         }
 
+        // Create and Update differ on a missing status (spec D23):
+        // - Create (statusRequired: false): null means a new task, so TryParse maps it to ToDo.
+        // - Update (statusRequired: true): the body replaces every field, so null is an error;
+        //   defaulting it would silently move the task back to To do.
+        // The ToDo assignment below only satisfies the out parameter; with the error set it is never used.
         if ((statusRequired && status is null) || !TaskItemStatuses.TryParse(status, out parsedStatus))
         {
             parsedStatus = TaskItemStatus.ToDo;
