@@ -20,8 +20,9 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Sub-project 1: foundation and Story 1 (sign in, add my first task) | Merged in #29 (follow-ups #30, #31) |
 | Story 2 (#16): see my tasks, newest first, no pagination | Merged in #32 |
 | Story 3 (#17): describe my task fully | Merged in #33 |
-| Story 4 (#18): update a task (edit, move between statuses) | In review in #35 |
-| Stories 5-9 (#19-#23) | Pending |
+| Story 4 (#18): update a task (edit, move between statuses) | Merged in #35 |
+| Story 5 (#19): delete a task, with confirmation | In progress on `feature/story-5-delete-a-task` |
+| Stories 6-9 (#20-#23) | Pending |
 | AWS deployment and CD (sub-project 3) | Pending |
 
 Last updated: 2026-11-10

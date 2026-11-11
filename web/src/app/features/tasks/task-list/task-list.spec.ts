@@ -98,4 +98,60 @@ describe('TaskList', () => {
     expect(el.querySelector<HTMLButtonElement>('button[aria-label="Move First"]')!.disabled).toBe(true);
     expect(el.querySelector<HTMLButtonElement>('button[aria-label="Move Second"]')!.disabled).toBe(false);
   });
+
+  const button = (el: HTMLElement, label: string) => el.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+
+  it('TaskList: Delete asks to confirm and emits delete only on confirm', () => {
+    const fixture = setupFixture([mk({ id: '1', title: 'A' })]);
+    const el = fixture.nativeElement as HTMLElement;
+    const deleted: Task[] = [];
+    fixture.componentInstance.delete.subscribe((t) => deleted.push(t));
+
+    button(el, 'Delete A')!.click();
+    fixture.detectChanges();
+    expect(el.textContent).toContain('Delete this task?');
+    expect(deleted).toEqual([]);
+
+    button(el, 'Confirm delete A')!.click();
+    expect(deleted.map((t) => t.id)).toEqual(['1']);
+  });
+
+  it('TaskList: Keep cancels the confirmation without emitting', () => {
+    const fixture = setupFixture([mk({ id: '1', title: 'A' })]);
+    const el = fixture.nativeElement as HTMLElement;
+    const deleted: Task[] = [];
+    fixture.componentInstance.delete.subscribe((t) => deleted.push(t));
+
+    button(el, 'Delete A')!.click();
+    fixture.detectChanges();
+    Array.from(el.querySelectorAll('button')).find((b) => b.textContent!.trim() === 'Keep')!.click();
+    fixture.detectChanges();
+
+    expect(deleted).toEqual([]);
+    expect(el.textContent).not.toContain('Delete this task?');
+    expect(button(el, 'Delete A')).not.toBeNull();
+  });
+
+  it('TaskList: the row being edited has Delete disabled', () => {
+    const el = setupFixture([mk({ id: '1', title: 'A' })], '1').nativeElement as HTMLElement;
+
+    expect(button(el, 'Delete A')!.disabled).toBe(true);
+  });
+
+  it('TaskList: focus moves to Confirm when asking and back to Delete on Keep', async () => {
+    const fixture = setupFixture([mk({ id: '1', title: 'A' })]);
+    const el = fixture.nativeElement as HTMLElement;
+    document.body.appendChild(el);
+
+    button(el, 'Delete A')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(button(el, 'Confirm delete A'));
+
+    Array.from(el.querySelectorAll('button')).find((b) => b.textContent!.trim() === 'Keep')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(button(el, 'Delete A'));
+    el.remove();
+  });
 });

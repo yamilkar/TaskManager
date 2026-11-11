@@ -8,6 +8,7 @@ using NSubstitute;
 using TaskManager.SharedKernel;
 using TaskManager.Tasks.Application;
 using TaskManager.Tasks.Application.CreateTask;
+using TaskManager.Tasks.Application.DeleteTask;
 using TaskManager.Tasks.Application.GetTask;
 using TaskManager.Tasks.Application.ListTasks;
 using TaskManager.Tasks.Application.Ports;
@@ -39,6 +40,9 @@ public sealed class TasksApiFactory(string signingKey = TasksApiFactory.DefaultK
     public ICommandHandler<UpdateTaskCommand, TaskResponse> Update { get; } =
         Substitute.For<ICommandHandler<UpdateTaskCommand, TaskResponse>>();
 
+    public ICommandHandler<DeleteTaskCommand, Unit> Delete { get; } =
+        Substitute.For<ICommandHandler<DeleteTaskCommand, Unit>>();
+
     public ITaskRepository Repository { get; } = Substitute.For<ITaskRepository>();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -55,6 +59,7 @@ public sealed class TasksApiFactory(string signingKey = TasksApiFactory.DefaultK
                 Replace(services, List);
                 Replace(services, Get);
                 Replace(services, Update);
+                Replace(services, Delete);
             }
 
             Replace(services, Repository);

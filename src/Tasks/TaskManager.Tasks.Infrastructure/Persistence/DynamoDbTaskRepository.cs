@@ -91,4 +91,30 @@ public sealed class DynamoDbTaskRepository(IAmazonDynamoDB db, IOptions<DynamoDb
             return false;
         }
     }
+
+    public async Task<bool> DeleteAsync(Guid userId, Guid taskId, CancellationToken ct)
+    {
+        try
+        {
+            // The key includes userId, so another user's task never matches (spec D30).
+            await db.DeleteItemAsync(
+                new DeleteItemRequest
+                {
+                    TableName = Table,
+                    Key = new Dictionary<string, AttributeValue>
+                    {
+                        ["userId"] = userId.ToAttr(),
+                        ["_id"] = taskId.ToAttr(),
+                    },
+                    ConditionExpression = "attribute_exists(#id)",
+                    ExpressionAttributeNames = new Dictionary<string, string> { ["#id"] = "_id" },
+                },
+                ct);
+            return true;
+        }
+        catch (ConditionalCheckFailedException)
+        {
+            return false;
+        }
+    }
 }

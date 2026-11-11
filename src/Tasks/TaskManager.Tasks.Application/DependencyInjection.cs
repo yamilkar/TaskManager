@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using TaskManager.SharedKernel;
 using TaskManager.Tasks.Application.CreateTask;
+using TaskManager.Tasks.Application.DeleteTask;
 using TaskManager.Tasks.Application.GetTask;
 using TaskManager.Tasks.Application.ListTasks;
 using TaskManager.Tasks.Application.UpdateTask;
@@ -13,6 +14,7 @@ public static class DependencyInjection
     {
         services.AddScoped<ICommandHandler<CreateTaskCommand, TaskResponse>, CreateTaskHandler>();
         services.AddScoped<ICommandHandler<UpdateTaskCommand, TaskResponse>, UpdateTaskHandler>();
+        services.AddScoped<ICommandHandler<DeleteTaskCommand, Unit>, DeleteTaskHandler>();
         services.AddScoped<IQueryHandler<ListTasksQuery, IReadOnlyList<TaskResponse>>, ListTasksHandler>();
         services.AddScoped<IQueryHandler<GetTaskQuery, TaskResponse>, GetTaskHandler>();
         return services;

@@ -41,4 +41,20 @@ export class TasksStore {
     this.tasksState.update((tasks) => tasks.map((t) => (t.id === id ? task : t)));
     return task;
   }
+
+  /**
+   * Deletes the task and drops it from the list. The API's task-not-found 404 means it is already gone,
+   * so it is dropped too; any other 404 (wrong route, proxy) is rethrown and the task is kept.
+   */
+  async remove(id: string): Promise<void> {
+    try {
+      await firstValueFrom(this.api.delete(id), { defaultValue: undefined });
+    } catch (e) {
+      const err = e as AppError;
+      if (err.status !== 404 || err.code !== 'tasks.not_found') {
+        throw e;
+      }
+    }
+    this.tasksState.update((tasks) => tasks.filter((t) => t.id !== id));
+  }
 }
