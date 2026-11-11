@@ -29,3 +29,8 @@ Thumbs.db
 # Misc
 *.log
 .env
+
+# CDK
+infra/cdk.out/
+infra/cdk-outputs.json
+artifacts/
