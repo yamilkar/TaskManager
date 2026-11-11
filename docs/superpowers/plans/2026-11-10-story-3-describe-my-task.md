@@ -123,7 +123,7 @@ Characterisation tests over **real handlers** (`new TasksApiFactory(useRealHandl
 | `Create_with_past_due_date_returns_400_with_reason` | `{"title":"x","dueDate":"2000-01-01"}` | `400`, `errors.dueDate[0] == TaskItem.DueDateInPastMessage` |
 | `Create_with_description_status_and_due_date_returns_201_with_all_fields` | `{"title":"x","description":"d","status":"InProgress","dueDate":"2099-12-31"}` | `201`, body `description == "d"`, `status == "InProgress"`, `dueDate == "2099-12-31"` |
 
-The Tasks.Api.Tests project may need a reference to `TaskManager.Tasks.Domain` for the constant; if it is not already transitive, assert the literal Global Constraints string instead of adding a reference.
+`TaskManager.Tasks.Domain` reaches this project transitively (Api.Tests → Tasks.Api → Application → Domain), so add `using TaskManager.Tasks.Domain;` and assert against `TaskItem.DueDateInPastMessage`. Add no new project reference.
 
 - [ ] **Step 2: Run, invert-to-fail check, restore**
 
@@ -155,6 +155,7 @@ git commit -m "test: cover Story 3 acceptance criteria at the Tasks API boundary
 - `TaskForm: clearing a past due date clears the error` — type `2000-01-01`, then `''`, fill title, submit → one emit with `dueDate: null`, message absent.
 - `TaskForm: accepts 2000-char description with surrounding whitespace` — description `'  ' + 'a'.repeat(2000) + '\n'` → one emit, `description.length === 2000`.
 - `TaskForm: accepts 200-char title with surrounding whitespace` — likewise for title → `title.length === 200`.
+- `TaskForm: reset leaves the due date untouched`: type `2099-12-31`, call `reset()`, then `expect(fixture.componentInstance['form'].controls.dueDate.touched).toBe(false)`. This guards the on-change touch below, because `FormControl.reset` emits `valueChanges` after it marks the control untouched.
 - Update `TaskForm: rejects a due date before local today with the server message` to expect `DUE_DATE_IN_PAST_MESSAGE`.
 
 - [ ] **Step 2: Run to verify the new-behaviour tests fail**
@@ -165,7 +166,7 @@ Expected: FAIL — `DUE_DATE_IN_PAST_MESSAGE` not exported; no hint; whitespace-
 - [ ] **Step 3: Implement in `task-form.ts` / `task-form.html`**
 
 - Export the constant and `maxTrimmedLength`; use `maxTrimmedLength(200)` / `(2000)` in place of `Validators.maxLength`.
-- In the constructor, subscribe to `form.controls.dueDate.valueChanges` with `takeUntilDestroyed()` and call `markAsTouched()` + `cdr.markForCheck()`, so the `pastDate` error renders without submit.
+- In the constructor, subscribe to `form.controls.dueDate.valueChanges` with `takeUntilDestroyed()` (from `@angular/core/rxjs-interop`). When the new value is a non-empty string, call `markAsTouched()` and `cdr.markForCheck()`, so the `pastDate` error renders without a submit. The non-empty guard keeps `reset()` from leaving the control touched.
 - Expose `protected readonly dueDateInPastMessage = DUE_DATE_IN_PAST_MESSAGE;` and render it in the `pastDate` `<mat-error>`; add `<mat-hint>Today or later.</mat-hint>` inside the due-date `mat-form-field`; import `MatHint`.
 
 - [ ] **Step 4: Run tests and lint**
@@ -194,7 +195,7 @@ Expected: all green; Domain and Application coverage ≥ 80%.
 
 Perform the three manual checks in spec section 7, take one screenshot per AC, and confirm `read_console_messages` shows zero warnings and errors on `/tasks`.
 
-- [ ] **Step 3: README** — add the row `| Describe a task (description, status, due date) | Done (Story 3) |` below "Create, list, get a task". If Story 2 has merged a different status layout by then, follow that layout instead.
+- [ ] **Step 3: README "Project status"**: add the row `| Describe a task (description, status, due date) | Done (Story 3) |` below `| Create, list, get a task | Done |`, and add Story 3 to the intro sentence above the table (line 5, "This repository delivers …"). If Story 2 (`feature/story-2-see-my-tasks`) has merged a different status layout by then, rebase first and follow that layout.
 
 - [ ] **Step 4: Commit**
 
