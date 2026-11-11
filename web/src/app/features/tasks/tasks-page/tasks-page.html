@@ -20,9 +20,10 @@
         [tasks]="store.tasks()"
         [editingId]="editing()?.id ?? null"
         [busy]="submitting()"
-        [pendingIds]="pendingMoves()"
+        [pendingIds]="pending()"
         (edit)="onEdit($event)"
         (move)="onMove($event)"
+        (delete)="onDelete($event)"
       />
     }
   </section>

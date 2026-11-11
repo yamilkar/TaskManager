@@ -280,4 +280,21 @@ describe('TasksPage', () => {
       expect(disabled(el, 'Edit First')).toBe(false);
     });
   });
+
+  it('TasksPage: confirming delete removes the task and shows "Task deleted"', async () => {
+    const { fixture, el } = setup();
+    ctrl.expectOne(URL).flush([mk('1', 'Gone'), mk('2', 'Stays')]);
+    await settle(fixture);
+
+    el.querySelector<HTMLButtonElement>('button[aria-label="Delete Gone"]')!.click();
+    fixture.detectChanges();
+    el.querySelector<HTMLButtonElement>('button[aria-label="Confirm delete Gone"]')!.click();
+    const req = ctrl.expectOne({ method: 'DELETE', url: `${URL}/1` });
+    req.flush(null, { status: 204, statusText: 'No Content' });
+    await settle(fixture);
+
+    expect(el.textContent).not.toContain('Gone');
+    expect(el.textContent).toContain('Stays');
+    expect(document.body.textContent).toContain('Task deleted');
+  });
 });

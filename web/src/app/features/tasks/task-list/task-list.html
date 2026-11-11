@@ -7,31 +7,54 @@
           <app-status-badge [status]="task.status" />
         </div>
         <div class="actions">
-          <button
-            matButton
-            type="button"
-            [attr.aria-label]="'Edit ' + task.title"
-            [disabled]="busy() || pendingIds().has(task.id)"
-            (click)="edit.emit(task)"
-          >
-            Edit
-          </button>
-          <button
-            matButton
-            type="button"
-            [attr.aria-label]="'Move ' + task.title"
-            [matMenuTriggerFor]="moveMenu"
-            [disabled]="busy() || task.id === editingId() || pendingIds().has(task.id)"
-          >
-            Move
-          </button>
-          <mat-menu #moveMenu="matMenu">
-            @for (status of statuses; track status) {
-              @if (status !== task.status) {
-                <button mat-menu-item type="button" (click)="move.emit({ task, status })">{{ labels[status] }}</button>
+          @if (confirmingId() === task.id) {
+            <span class="confirm">Delete this task?</span>
+            <button
+              matButton
+              type="button"
+              [attr.aria-label]="'Confirm delete ' + task.title"
+              [disabled]="busy() || task.id === editingId() || pendingIds().has(task.id)"
+              (click)="confirmDelete(task)"
+            >
+              Delete
+            </button>
+            <button matButton type="button" (click)="confirmingId.set(null)">Keep</button>
+          } @else {
+            <button
+              matButton
+              type="button"
+              [attr.aria-label]="'Edit ' + task.title"
+              [disabled]="busy() || pendingIds().has(task.id)"
+              (click)="edit.emit(task)"
+            >
+              Edit
+            </button>
+            <button
+              matButton
+              type="button"
+              [attr.aria-label]="'Move ' + task.title"
+              [matMenuTriggerFor]="moveMenu"
+              [disabled]="busy() || task.id === editingId() || pendingIds().has(task.id)"
+            >
+              Move
+            </button>
+            <mat-menu #moveMenu="matMenu">
+              @for (status of statuses; track status) {
+                @if (status !== task.status) {
+                  <button mat-menu-item type="button" (click)="move.emit({ task, status })">{{ labels[status] }}</button>
+                }
               }
-            }
-          </mat-menu>
+            </mat-menu>
+            <button
+              matButton
+              type="button"
+              [attr.aria-label]="'Delete ' + task.title"
+              [disabled]="busy() || task.id === editingId() || pendingIds().has(task.id)"
+              (click)="confirmingId.set(task.id)"
+            >
+              Delete
+            </button>
+          }
         </div>
         @if (task.description) {
           <p class="description">{{ task.description }}</p>

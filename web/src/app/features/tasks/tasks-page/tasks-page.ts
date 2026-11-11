@@ -22,8 +22,8 @@ export class TasksPage implements OnInit {
   /** The task loaded into the form; null means the form adds a new task. */
   protected readonly editing = signal<Task | null>(null);
   protected readonly submitting = signal(false);
-  /** Ids of tasks whose move is still in flight. */
-  protected readonly pendingMoves = signal<ReadonlySet<string>>(new Set());
+  /** Ids of tasks whose move or delete is still in flight. */
+  protected readonly pending = signal<ReadonlySet<string>>(new Set());
   protected readonly serverErrors = signal<Record<string, string[]>>({});
   protected readonly formError = signal<string | null>(null);
 
@@ -69,7 +69,7 @@ export class TasksPage implements OnInit {
   }
 
   protected async onMove({ task, status }: { task: Task; status: TaskStatus }): Promise<void> {
-    this.pendingMoves.update((ids) => new Set(ids).add(task.id));
+    this.pending.update((ids) => new Set(ids).add(task.id));
     try {
       await this.store.update(task.id, {
         title: task.title,
@@ -83,7 +83,23 @@ export class TasksPage implements OnInit {
       const reason = Object.values(err.fieldErrors ?? {})[0]?.[0] ?? err.message;
       this.snackBar.open(`Couldn't move the task: ${reason}`, undefined, { duration: 5000 });
     } finally {
-      this.pendingMoves.update((ids) => {
+      this.pending.update((ids) => {
+        const next = new Set(ids);
+        next.delete(task.id);
+        return next;
+      });
+    }
+  }
+
+  protected async onDelete(task: Task): Promise<void> {
+    this.pending.update((ids) => new Set(ids).add(task.id));
+    try {
+      await this.store.remove(task.id);
+      this.snackBar.open('Task deleted', undefined, { duration: 3000 });
+    } catch (e) {
+      this.snackBar.open(`Couldn't delete the task: ${(e as AppError).message}`, undefined, { duration: 5000 });
+    } finally {
+      this.pending.update((ids) => {
         const next = new Set(ids);
         next.delete(task.id);
         return next;

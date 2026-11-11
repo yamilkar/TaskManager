@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { EmptyState } from '../../../shared/ui/empty-state/empty-state';
@@ -23,7 +23,17 @@ export class TaskList {
   readonly pendingIds = input<ReadonlySet<string>>(new Set());
   readonly edit = output<Task>();
   readonly move = output<{ task: Task; status: TaskStatus }>();
+  /** Emitted only after the user confirms in the row. */
+  readonly delete = output<Task>();
+
+  /** The row asking "Delete this task?"; only one row confirms at a time. */
+  protected readonly confirmingId = signal<string | null>(null);
 
   protected readonly statuses = TASK_STATUSES;
   protected readonly labels = STATUS_LABELS;
+
+  protected confirmDelete(task: Task): void {
+    this.confirmingId.set(null);
+    this.delete.emit(task);
+  }
 }
