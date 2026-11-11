@@ -69,6 +69,23 @@ public sealed class SsmConfigurationTests
         configuration["Seed:DemoPassword"].ShouldBe("a-Private-demo-passw0rd");
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AddFromSsm_emptyParameterValue_throwsNamingTheParameterNotTheValue(string value)
+    {
+        var client = Substitute.For<IAmazonSimpleSystemsManagement>();
+        client.GetParameterAsync(Arg.Any<GetParameterRequest>(), Arg.Any<CancellationToken>())
+            .Returns(new GetParameterResponse { Parameter = new Parameter { Name = ParameterName, Value = value } });
+        var configuration = Configuration((NameKey, ParameterName));
+
+        var ex = Should.Throw<InvalidOperationException>(() => configuration.AddFromSsm(() => client, NameKey, TargetKey));
+
+        ex.Message.ShouldContain(ParameterName);
+        ex.Message.ShouldContain(NameKey);
+        configuration[TargetKey].ShouldBeNull();
+    }
+
     [Fact]
     public void AddFromSsm_parameterFetchFails_throws()
     {

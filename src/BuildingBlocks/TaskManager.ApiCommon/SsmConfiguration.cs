@@ -35,7 +35,15 @@ public static class SsmConfiguration
             .GetAwaiter()
             .GetResult();
 
-        configuration.AddInMemoryCollection([new KeyValuePair<string, string?>(targetKey, response.Parameter.Value)]);
+        var value = response.Parameter?.Value;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            // Name the parameter, never the value.
+            throw new InvalidOperationException(
+                $"SSM parameter '{parameterName}' (from {parameterNameKey}) is empty; it must hold the value for {targetKey}.");
+        }
+
+        configuration.AddInMemoryCollection([new KeyValuePair<string, string?>(targetKey, value)]);
         return configuration;
     }
 }
