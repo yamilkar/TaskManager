@@ -211,7 +211,7 @@ Expected cost for this exercise: **$0 per month**.
 
 ### How deployment works
 
-- **On every merge to `main`**, the `changes` job works out which artifacts changed (`users-api`, `tasks-api`, `web`, `infra`; shared code and build settings count for both APIs). If nothing deployable changed (for example a docs-only merge), nothing is deployed.
+- **On every merge to `main`**, the `changes` job works out which artifacts changed (`users-api`, `tasks-api`, `web`, `infra`; shared code and build settings count for both APIs) since the **last successful CI run on `main`**. Comparing against that run, not just the previous commit, keeps changes from runs that GitHub cancelled (quick successive merges) or that failed. If nothing deployable changed (for example a docs-only merge), nothing is deployed.
 - Otherwise the `deploy` job runs after `backend`, `frontend` and `repo-hygiene` pass. It publishes both APIs deterministically, so unchanged code produces byte-identical output, builds the client and runs `cdk deploy`. CloudFormation then updates only the resources whose code or settings changed: an unchanged Lambda or client is left alone.
 - **Manual deploy**: Actions → CI → Run workflow on `main`. The tests run first, then everything is deployed (unchanged resources are still skipped).
 - After each deploy, `infra/smoke-test.sh` checks the live site (including a deep-link reload), `config.json`, both `/health/ready` endpoints, login and token rejection, and CORS from the site's origin. The job summary lists the site and API URLs.
@@ -235,12 +235,21 @@ npx --yes aws-cdk@2.1148.1 bootstrap aws://<ACCOUNT_ID>/us-east-1
 #    add: -c githubOidcProviderArn=arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com
 cd infra && npx --yes aws-cdk@2.1148.1 deploy TaskManager-GitHubOidc
 
-# 4. Tell the workflow which role and region to use (repository variables, not secrets)
+# 4. REQUIRED: only main may deploy. The role trusts any job in the `production` environment, and a feature
+#    branch could edit ci.yml, so GitHub itself must refuse that environment to every other branch.
+gh api -X PUT repos/<owner>/TaskManager/environments/production --input - <<'JSON'
+{ "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true } }
+JSON
+gh api -X POST repos/<owner>/TaskManager/environments/production/deployment-branch-policies -f name=main -f type=branch
+
+# 5. Tell the workflow which role and region to use (repository variables, not secrets)
 gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn>"
 gh variable set AWS_REGION --body us-east-1
 ```
 
-Then run the workflow manually (or merge a change). The deploy role is trusted only for this repository's `production` environment, which GitHub creates on the first deploy; add a required reviewer there if you want to approve each deploy.
+Check step 4 under Settings → Environments → `production` → Deployment branches: only `main`. Optionally add a required reviewer there to approve each deploy.
+
+Then run the **first deploy manually** (Actions → CI → Run workflow on `main`). Merges made before the setup ran CI successfully without deploying, so only a manual run is sure to deploy everything; after that, merges deploy what changed.
 
 ### Teardown
 
