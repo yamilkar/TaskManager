@@ -2,16 +2,16 @@
 
 A task-management application: users register, sign in, and create, list and update **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
 
-This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task") and Stories 2-5 ("See my tasks", "Describe my task fully", "Update a task", "Delete a task"), all merged. Story 6 ("Create my own account") is in progress, and Stories 7-9 are pending. AWS deployment and continuous deployment are sub-project 3 (pending).
+This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task") and Stories 2-5 ("See my tasks", "Describe my task fully", "Update a task", "Delete a task"), all merged. Story 6 ("Create my own account") is merged. Story 9 ("Use TaskManager over the internet": AWS deployment and continuous deployment) is in review, and the remaining stories are pending.
 
 | Capability | Status |
 |---|---|
-| Register, sign in, `GET /users/me` | Done (sign-up polish in progress, Story 6) |
+| Register, sign in, `GET /users/me` | Done (Story 6) |
 | Create, list (newest first), get a task | Done |
 | Describe a task (description, status, due date) | Done (Story 3) |
 | Update a task, move it between To do, In progress and Done | Done (Story 4) |
 | Delete a task, with confirmation | Done (Story 5) |
-| AWS deployment and CD | Pending (sub-project 3) |
+| Public deployment on AWS, CD on merge and on demand | In review (Story 9) |
 
 ## Project status
 
@@ -22,11 +22,11 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Story 3 (#17): describe my task fully | Merged in #33 |
 | Story 4 (#18): update a task (edit, move between statuses) | Merged in #35 |
 | Story 5 (#19): delete a task, with confirmation | Merged in #36 |
-| Story 6 (#20): create my own account | In progress on `feature/story-6-create-my-own-account` |
-| Stories 7-9 (#21-#23) | Pending |
-| AWS deployment and CD (sub-project 3) | Pending |
+| Story 6 (#20): create my own account | Merged in #37 |
+| Story 9 (#38): use TaskManager over the internet (AWS deployment and CD) | In review on `feature/story-9-use-over-the-internet`; first deployment waits for the one-time AWS setup |
+| Remaining stories (#21-#23, #34) | Pending |
 
-Last updated: 2026-11-10
+Last updated: 2026-11-11
 
 ## Architecture
 
@@ -130,6 +130,7 @@ Set through `appsettings*.json`, user-secrets or environment variables (`Section
 | | `TableName` | `TaskManager-Users` / `TaskManager-Tasks` |
 | | `CreateTablesIfMissing` | `false`; `true` in Development (in AWS, tables come from IaC) |
 | `Jwt` | `SigningKey` | **required**, at least 32 bytes, never committed; must be identical on both APIs |
+| | `SigningKeyParameterName` | unset locally; in AWS `/taskmanager/jwt-signing-key`, an SSM SecureString read at startup into `SigningKey` (a configured `SigningKey` wins) |
 | | `Issuer`, `Audience` | `taskmanager-users`, `taskmanager-api` |
 | | `LifetimeMinutes` | `60` |
 | `Seed` | `Enabled` | `false`; `true` in Development. Seeding is idempotent, and enabling it outside Development fails startup (the demo password is public) |
@@ -141,8 +142,10 @@ Set through `appsettings*.json`, user-secrets or environment variables (`Section
 The client reads `web/public/config.json` at startup, so one build runs in any environment:
 
 ```json
-{ "usersApiUrl": "http://localhost:5080", "tasksApiUrl": "http://localhost:5090" }
+{ "usersApiUrl": "http://localhost:5080", "tasksApiUrl": "http://localhost:5090", "demoAccount": true }
 ```
+
+`demoAccount` shows the demo credentials on the login page. The deployed `config.json` is generated with the AWS API URLs and no `demoAccount`, because there is no demo user in AWS.
 
 ## API overview
 
@@ -169,18 +172,88 @@ src/Users/            Domain, Application, Infrastructure, Api
 src/Tasks/            Domain, Application, Infrastructure, Api
 tests/                one test project per src project, TaskManager.Testing (helpers), ArchitectureTests
 web/                  Angular client (core/, layout/, features/, shared/)
+infra/                AWS CDK app (C#), cdk.json, smoke-test.sh
 docs/superpowers/     design spec and implementation plan
-.github/workflows/    ci.yml, pr-review.yml
+.github/workflows/    ci.yml (build, test, deploy), pr-review.yml
+.github/scripts/      changed-artifacts.sh (which artifacts a push changed)
 .claude/              rules/rules.md (collaborator rules), launch.json (dev-server configs)
 ```
 
+## Deployment (AWS)
+
+The app runs on AWS free-tier services only, defined with the AWS CDK in C# (`infra/TaskManager.Infra`, tested by `tests/TaskManager.Infra.Tests`).
+
+```mermaid
+flowchart LR
+    Browser -->|HTTPS| CF["CloudFront<br/>(origin access control)"]
+    CF --> S3[("S3 bucket, private<br/>Angular build + config.json")]
+    Browser -->|"HTTPS, CORS"| UF["Users API<br/>Lambda Function URL"]
+    Browser -->|"HTTPS, CORS, Bearer JWT"| TF["Tasks API<br/>Lambda Function URL"]
+    UF --> UT[("DynamoDB<br/>TaskManager-Users")]
+    TF --> TT[("DynamoDB<br/>TaskManager-Tasks")]
+    UF & TF -. "JWT key at start" .-> SSM["SSM Parameter Store<br/>SecureString"]
+    UF & TF -. "JSON logs, EMF metrics" .-> CW["CloudWatch"]
+```
+
+| Piece | AWS service | Why this one (cost) |
+|---|---|---|
+| Users API, Tasks API | Lambda (`dotnet10`, arm64, 1024 MB) with a public **Function URL** | No API Gateway charge; Lambda's 1M requests/month are always free |
+| Data | DynamoDB, provisioned **5 RCU / 5 WCU per table** | 10 + 10 is inside the always-free 25 / 25 |
+| Web client | Private S3 bucket behind **CloudFront** | CloudFront's 1 TB / 10M requests are always free; the bucket holds a few MB |
+| JWT signing key | **SSM Parameter Store SecureString** | Free (Secrets Manager costs $0.40 per secret per month) |
+| Logs and metrics | CloudWatch Logs (7-day retention), 6 EMF custom metrics | Within the 5 GB and 10-metric free allowances |
+| CI/CD sign-in | GitHub OIDC → IAM role | No AWS keys stored in GitHub |
+
+Expected cost for this exercise: **$0 per month**.
+
+### How deployment works
+
+- **On every merge to `main`**, the `changes` job works out which artifacts changed (`users-api`, `tasks-api`, `web`, `infra`; shared code and build settings count for both APIs). If nothing deployable changed (for example a docs-only merge), nothing is deployed.
+- Otherwise the `deploy` job runs after `backend`, `frontend` and `repo-hygiene` pass. It publishes both APIs deterministically, so unchanged code produces byte-identical output, builds the client and runs `cdk deploy`. CloudFormation then updates only the resources whose code or settings changed: an unchanged Lambda or client is left alone.
+- **Manual deploy**: Actions → CI → Run workflow on `main`. The tests run first, then everything is deployed (unchanged resources are still skipped).
+- After each deploy, `infra/smoke-test.sh` checks the live site (including a deep-link reload), `config.json`, both `/health/ready` endpoints, login and token rejection, and CORS from the site's origin. The job summary lists the site and API URLs.
+- Until the AWS setup below is done, the `deploy` job is skipped, so CI stays green.
+
+### One-time AWS setup (repository owner)
+
+You need an AWS account and the AWS CLI signed in as an administrator (for example `aws sso login`). The pipeline itself never uses these credentials.
+
+```bash
+# 1. The JWT signing key (a SecureString; CloudFormation cannot create these)
+aws ssm put-parameter --region us-east-1 --name /taskmanager/jwt-signing-key --type SecureString --value "$(openssl rand -base64 48)"
+
+# 2. Prepare the account for the CDK (once per account and region)
+npx --yes aws-cdk@2.1148.1 bootstrap aws://<ACCOUNT_ID>/us-east-1
+
+# 3. The GitHub OIDC deploy role (prints DeployRoleArn). If the account already has the GitHub OIDC provider,
+#    add: -c githubOidcProviderArn=arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com
+cd infra && npx --yes aws-cdk@2.1148.1 deploy TaskManager-GitHubOidc
+
+# 4. Tell the workflow which role and region to use (repository variables, not secrets)
+gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn>"
+gh variable set AWS_REGION --body us-east-1
+```
+
+Then run the workflow manually (or merge a change). The deploy role is trusted only for this repository's `production` environment, which GitHub creates on the first deploy; add a required reviewer there if you want to approve each deploy.
+
+### Teardown
+
+```bash
+cd infra && npx --yes aws-cdk@2.1148.1 destroy TaskManager TaskManager-GitHubOidc
+aws ssm delete-parameter --region us-east-1 --name /taskmanager/jwt-signing-key
+```
+
+Tables, bucket contents and log groups are deleted with the stack.
+
 ## CI and PR review
 
-`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`:
+`.github/workflows/ci.yml` runs on every pull request, on pushes to `main`, and on demand:
 
 - **backend**: restore, `dotnet build -warnaserror`, tests with coverage, and the 80% Domain + Application line-coverage gate.
 - **frontend**: `npm ci`, `ng lint --max-warnings 0`, `ng test`, `ng build`.
 - **repo-hygiene**: fails if any tracked file is a symbolic link.
+- **changes** (pushes to `main` and manual runs): which deployable artifacts changed.
+- **deploy** (`main` only, after the jobs above pass): deploys to AWS and smoke-tests the result; see [Deployment (AWS)](#deployment-aws). It also runs from Actions → CI → Run workflow.
 
 `.github/workflows/pr-review.yml` has Claude review each PR with fresh eyes against `.claude/rules/rules.md`. It is comment-only: it never approves, resolves threads or merges, and a human does that.
 
@@ -205,5 +278,6 @@ docs/superpowers/     design spec and implementation plan
 - **No end-to-end browser test suite** (unit and integration tests only).
 - **Browser console and wrong passwords**: a failed login returns `401` by design, and the browser itself logs "Failed to load resource: 401" for it. The app code emits no warnings or errors; the browser's own network log line cannot be suppressed without breaking the API contract.
 - No pagination parameters on the list endpoint; no password reset.
-- **Rate limits are per instance and per IP**: behind a proxy such as CloudFront, set `ForwardedHeaders:KnownProxies` or `KnownNetworks` (spec section 11).
-- **Deployment pending**: AWS hosting and CD are sub-project 3. Task update and delete are later stories.
+- **Rate limits are per instance and per IP**: each warm Lambda instance keeps its own counters, so the effective limit grows with concurrency. In AWS the browser calls the Lambda Function URLs directly (no proxy), so the client IP is the real one and `ForwardedHeaders` stays unset. Behind a single proxy, set `ForwardedHeaders:KnownProxies` or `KnownNetworks`; multi-hop proxy chains are not supported.
+- **Default AWS domains**: the site uses its `*.cloudfront.net` address and the APIs their `*.lambda-url.<region>.on.aws` addresses; there is no custom domain, WAF or API Gateway (all left out to stay in the free tier).
+- **No demo user in AWS**: sign up on the deployed site instead.
