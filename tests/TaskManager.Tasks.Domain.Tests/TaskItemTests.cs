@@ -145,4 +145,103 @@ public class TaskItemTests
         task.CreatedAt.ShouldBe(created);
         task.UpdatedAt.ShouldBe(updated);
     }
+
+    private static readonly DateTimeOffset CreatedAt = new(2026, 11, 1, 9, 0, 0, TimeSpan.Zero);
+
+    private static TaskItem Existing(DateOnly? due = null, TaskItemStatus status = TaskItemStatus.ToDo) =>
+        TaskItem.Rehydrate(Id, UserId, "Old", "old", status, due, CreatedAt, CreatedAt);
+
+    [Fact]
+    public void Update_validFields_returnsNewItemWithSameIdOwnerCreatedAtAndUpdatedAtNow()
+    {
+        var original = Existing();
+
+        var updated = original.Update("  New  ", "d", "Done", new DateOnly(2026, 11, 20), Now).Value;
+
+        updated.Id.ShouldBe(Id);
+        updated.UserId.ShouldBe(UserId);
+        updated.Title.ShouldBe("New");
+        updated.Description.ShouldBe("d");
+        updated.Status.ShouldBe(TaskItemStatus.Done);
+        updated.DueDate.ShouldBe(new DateOnly(2026, 11, 20));
+        updated.CreatedAt.ShouldBe(CreatedAt);
+        updated.UpdatedAt.ShouldBe(Now);
+        original.Title.ShouldBe("Old");
+        original.UpdatedAt.ShouldBe(CreatedAt);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Update_blankTitle_returnsTitleRequiredError(string? title)
+    {
+        var result = Existing().Update(title, null, "ToDo", null, Now);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.FieldErrors!["title"].ShouldBe(["Title is required."]);
+    }
+
+    [Fact]
+    public void Update_201CharTitle_returnsMaxLengthError()
+        => Existing().Update(new string('a', 201), null, "ToDo", null, Now)
+            .Error!.FieldErrors!["title"].ShouldBe(["Title must be at most 200 characters."]);
+
+    [Fact]
+    public void Update_2001CharDescription_returnsMaxLengthError()
+        => Existing().Update("t", new string('d', 2001), "ToDo", null, Now)
+            .Error!.FieldErrors!["description"].ShouldBe(["Description must be at most 2000 characters."]);
+
+    [Fact]
+    public void Update_blankDescription_clearsDescription()
+        => Existing().Update("t", "   ", "ToDo", null, Now).Value.Description.ShouldBeNull();
+
+    [Fact]
+    public void Update_nullDueDate_clearsDueDate()
+        => Existing(new DateOnly(2026, 12, 1)).Update("t", null, "ToDo", null, Now).Value.DueDate.ShouldBeNull();
+
+    [Fact]
+    public void Update_missingStatus_returnsStatusError()
+        => Existing().Update("t", null, null, null, Now)
+            .Error!.FieldErrors!["status"].ShouldBe([TaskItemStatuses.InvalidMessage]);
+
+    [Fact]
+    public void Update_unknownStatus_returnsStatusError()
+        => Existing().Update("t", null, "Blocked", null, Now)
+            .Error!.FieldErrors!["status"].ShouldBe([TaskItemStatuses.InvalidMessage]);
+
+    [Fact]
+    public void Update_unchangedPastDueDate_isAccepted()
+    {
+        var result = Existing(new DateOnly(2026, 11, 1)).Update("t", null, "Done", new DateOnly(2026, 11, 1), Now);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Status.ShouldBe(TaskItemStatus.Done);
+        result.Value.DueDate.ShouldBe(new DateOnly(2026, 11, 1));
+    }
+
+    [Fact]
+    public void Update_newPastDueDate_returnsDueDateError()
+    {
+        var past = new DateOnly(2026, 11, 8);
+
+        var result = Existing().Update("t", null, "ToDo", past, Now);
+
+        result.IsFailure.ShouldBeTrue();
+        result.Error!.FieldErrors!["dueDate"].ShouldBe(TaskItem.Create(Id, UserId, "t", null, null, past, Now).Error!.FieldErrors!["dueDate"]);
+    }
+
+    [Fact]
+    public void Update_changedPastDueDateToOtherPastDate_returnsDueDateError()
+        => Existing(new DateOnly(2026, 11, 1)).Update("t", null, "ToDo", new DateOnly(2026, 11, 2), Now)
+            .Error!.FieldErrors!.Keys.ShouldContain("dueDate");
+
+    [Fact]
+    public void Update_badStatusAndBlankTitle_reportsBothInOneError()
+    {
+        var result = Existing().Update(" ", null, "bogus", null, Now);
+
+        result.Error!.Code.ShouldBe("validation_failed");
+        result.Error.FieldErrors!.Keys.ShouldBe(["title", "status"], ignoreOrder: true);
+    }
 }

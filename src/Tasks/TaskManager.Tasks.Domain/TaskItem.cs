@@ -57,7 +57,50 @@ public sealed class TaskItem
         }
 
         var trimmedTitle = title?.Trim();
-        var trimmedDescription = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        var trimmedDescription = Normalize(description);
+        var errors = Validate(trimmedTitle, trimmedDescription, status, statusRequired: false, dueDate, unchangedDueDate: null, now, out var parsedStatus);
+        if (errors.Count > 0)
+        {
+            return ValidationFailed(errors);
+        }
+
+        return new TaskItem(id, userId, trimmedTitle!, trimmedDescription, parsedStatus, dueDate, now, now);
+    }
+
+    /// <summary>
+    /// Replaces the editable fields with the same rules as <see cref="Create"/>, except that status is required
+    /// and an unchanged due date is accepted even if it is now in the past (spec D23, D24).
+    /// Returns a new item; id, owner and creation time are kept.
+    /// </summary>
+    public Result<TaskItem> Update(string? title, string? description, string? status, DateOnly? dueDate, DateTimeOffset now)
+    {
+        var trimmedTitle = title?.Trim();
+        var trimmedDescription = Normalize(description);
+        var errors = Validate(trimmedTitle, trimmedDescription, status, statusRequired: true, dueDate, unchangedDueDate: DueDate, now, out var parsedStatus);
+        if (errors.Count > 0)
+        {
+            return ValidationFailed(errors);
+        }
+
+        return new TaskItem(Id, UserId, trimmedTitle!, trimmedDescription, parsedStatus, dueDate, CreatedAt, now);
+    }
+
+    private static string? Normalize(string? description) =>
+        string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+
+    private static Error ValidationFailed(Dictionary<string, string[]> errors) =>
+        Error.Validation("validation_failed", "One or more validation errors occurred.", errors);
+
+    private static Dictionary<string, string[]> Validate(
+        string? trimmedTitle,
+        string? trimmedDescription,
+        string? status,
+        bool statusRequired,
+        DateOnly? dueDate,
+        DateOnly? unchangedDueDate,
+        DateTimeOffset now,
+        out TaskItemStatus parsedStatus)
+    {
         var errors = new Dictionary<string, string[]>();
 
         if (string.IsNullOrEmpty(trimmedTitle))
@@ -74,23 +117,20 @@ public sealed class TaskItem
             errors["description"] = ["Description must be at most 2000 characters."];
         }
 
-        if (!TaskItemStatuses.TryParse(status, out var parsedStatus))
+        if ((statusRequired && status is null) || !TaskItemStatuses.TryParse(status, out parsedStatus))
         {
+            parsedStatus = TaskItemStatus.ToDo;
             errors["status"] = [TaskItemStatuses.InvalidMessage];
         }
 
         // Spec D9: valid if not before today in the user's time zone; UTC today minus one day covers every UTC offset.
-        if (dueDate is { } due && due < DateOnly.FromDateTime(now.UtcDateTime).AddDays(-1))
+        // Spec D24: an unchanged due date is kept as is, so an overdue task can still be edited or moved.
+        if (dueDate is { } due && dueDate != unchangedDueDate && due < DateOnly.FromDateTime(now.UtcDateTime).AddDays(-1))
         {
             errors["dueDate"] = ["Due date cannot be in the past."];
         }
 
-        if (errors.Count > 0)
-        {
-            return Error.Validation("validation_failed", "One or more validation errors occurred.", errors);
-        }
-
-        return new TaskItem(id, userId, trimmedTitle!, trimmedDescription, parsedStatus, dueDate, now, now);
+        return errors;
     }
 
     public static TaskItem Rehydrate(
