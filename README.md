@@ -2,7 +2,9 @@
 
 A task-management application: users register, sign in, and create, list and update **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
 
-This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task") and Stories 2-5 ("See my tasks", "Describe my task fully", "Update a task", "Delete a task"), all merged. Story 6 ("Create my own account") is merged. Story 9 ("Use TaskManager over the internet": AWS deployment and continuous deployment) is merged and live at https://d374jkz3g8l8ht.cloudfront.net, and the remaining stories are pending.
+This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task") and Stories 2-5 ("See my tasks", "Describe my task fully", "Update a task", "Delete a task"), all merged. Story 6 ("Create my own account") is merged. Story 9 ("Use TaskManager over the internet": AWS deployment and continuous deployment) is merged and live at https://d374jkz3g8l8ht.cloudfront.net. Story 8 ("Use it on my phone") is merged, and the remaining stories are pending.
+
+**Start here:** [PRESENTATION.md](PRESENTATION.md) explains the thought process and the key decisions, and [GENAI.md](GENAI.md) covers how GenAI was used and validated.
 
 | Capability | Status |
 |---|---|
@@ -12,7 +14,7 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Update a task, move it between To do, In progress and Done | Done (Story 4) |
 | Delete a task, with confirmation | Done (Story 5) |
 | Public deployment on AWS, CD on merge and on demand | Done (Story 9), live at https://d374jkz3g8l8ht.cloudfront.net |
-| Responsive board (To do, In progress, Done columns; status tabs on phones), light and dark theme | In review (Story 8, #23) |
+| Responsive board (To do, In progress, Done columns; status tabs on phones), light and dark theme | Done (Story 8) |
 
 ## Project status
 
@@ -25,8 +27,9 @@ This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and ad
 | Story 5 (#19): delete a task, with confirmation | Merged in #36 |
 | Story 6 (#20): create my own account | Merged in #37 |
 | Story 9 (#38): use TaskManager over the internet (AWS deployment and CD) | Merged in #39; deployed 2026-11-11. Follow-up: API docs (Scalar) on the deployed APIs, merged in #40 |
-| Story 8 (#23): use it on my phone (responsive redesign: brand landing page, status board, light and dark theme) | In review on `feature/story-8-use-it-on-my-phone` |
-| Remaining stories (#21, #22, #34) | Pending |
+| Story 8 (#23): use it on my phone (responsive redesign: brand landing page, status board, light and dark theme) | Merged in #41 |
+| Sign out (#34) | Done (delivered with the foundation) |
+| Remaining stories (#21, #22) | Pending |
 
 Last updated: 2026-11-11
 
