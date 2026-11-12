@@ -2,33 +2,7 @@
 
 A task-management application: users register, sign in, and create, list and update **their own** tasks. It is made of a **Users API**, a **Tasks API** (both ASP.NET Core on .NET 10), one **DynamoDB** table per API, and an **Angular 22** client.
 
-This repository delivers sub-project 1 (foundation plus Story 1, "Sign in and add my first task") and Stories 2-5 ("See my tasks", "Describe my task fully", "Update a task", "Delete a task"), all merged. Story 6 ("Create my own account") is merged. Story 9 ("Use TaskManager over the internet": AWS deployment and continuous deployment) is merged and live at https://d374jkz3g8l8ht.cloudfront.net, and the remaining stories are pending.
-
-| Capability | Status |
-|---|---|
-| Register, sign in, `GET /users/me` | Done (Story 6) |
-| Create, list (newest first), get a task | Done |
-| Describe a task (description, status, due date) | Done (Story 3) |
-| Update a task, move it between To do, In progress and Done | Done (Story 4) |
-| Delete a task, with confirmation | Done (Story 5) |
-| Public deployment on AWS, CD on merge and on demand | Done (Story 9), live at https://d374jkz3g8l8ht.cloudfront.net |
-| Responsive board (To do, In progress, Done columns; status tabs on phones), light and dark theme | In review (Story 8, #23) |
-
-## Project status
-
-| Work | Status |
-|---|---|
-| Sub-project 1: foundation and Story 1 (sign in, add my first task) | Merged in #29 (follow-ups #30, #31) |
-| Story 2 (#16): see my tasks, newest first, no pagination | Merged in #32 |
-| Story 3 (#17): describe my task fully | Merged in #33 |
-| Story 4 (#18): update a task (edit, move between statuses) | Merged in #35 |
-| Story 5 (#19): delete a task, with confirmation | Merged in #36 |
-| Story 6 (#20): create my own account | Merged in #37 |
-| Story 9 (#38): use TaskManager over the internet (AWS deployment and CD) | Merged in #39; deployed 2026-11-11. Follow-up: API docs (Scalar) on the deployed APIs, merged in #40 |
-| Story 8 (#23): use it on my phone (responsive redesign: brand landing page, status board, light and dark theme) | In review on `feature/story-8-use-it-on-my-phone` |
-| Remaining stories (#21, #22, #34) | Pending |
-
-Last updated: 2026-11-11
+Live Demo: https://d374jkz3g8l8ht.cloudfront.net
 
 ## Architecture
 
@@ -53,15 +27,6 @@ flowchart TB
     Api --> Infra
 ```
 
-Domain and Application reference no `Amazon.*` or `Microsoft.AspNetCore.*` packages, and only `*.Api` references `*.Infrastructure`. NetArchTest tests in `tests/TaskManager.ArchitectureTests` enforce this.
-
-Key design points (full detail in `docs/superpowers/specs/2026-11-10-story-1-foundation-design.md`):
-
-- **Users table** (`TaskManager-Users`, pk `pk`) holds `USER#<guid>` items and `EMAIL#<normalized email>` guard items. Registration writes both in one `TransactWriteItems`, which makes email uniqueness safe under concurrency (a GSI cannot enforce uniqueness). Login uses two strongly consistent `GetItem` calls.
-- **Tasks table** (`TaskManager-Tasks`, pk `userId`, sk `_id`) means ownership is enforced by the key. Another user's task returns `404`.
-- **Auth**: JWT HS256, 60 minutes, issuer `taskmanager-users`, audience `taskmanager-api`. Wrong email and wrong password give the same `401`. Login and register are each limited to 5 requests per minute per IP, in separate buckets (`429`).
-- **Observability**: Serilog JSON logs with `X-Correlation-Id` (CloudWatch Logs when deployed) and CloudWatch Embedded Metric Format metrics. Passwords, hashes and tokens are never logged.
-
 ## Prerequisites
 
 - .NET SDK 10.0.401 or newer (see `global.json`)
@@ -71,7 +36,7 @@ Key design points (full detail in `docs/superpowers/specs/2026-11-10-story-1-fou
 ## Quick start
 
 ```bash
-# 1. DynamoDB Local on :8000 and the admin UI on :8001
+# 1. DynamoDB Local on :8000
 docker compose up -d
 
 # 2. The SAME signing key (32+ characters) on BOTH APIs
@@ -85,14 +50,6 @@ dotnet run --project src/Tasks/TaskManager.Tasks.Api    # http://localhost:5090
 # 4. Run the client
 cd web && npm ci && npm start                           # http://localhost:4200
 ```
-
-A missing or too-short key makes the API fail at startup. `.claude/launch.json` defines `users-api`, `tasks-api` and `web` dev-server configurations for Claude Code's preview tooling.
-
-### Demo credentials
-
-`demo@taskmanager.dev` / `Demo123!` (the login page also has a "Use demo account" button). The demo user has a few seeded tasks.
-
-On the deployed site the same demo user exists with a **private password** (from SSM, shared only with reviewers), and the login page does not show the demo option.
 
 ## Running tests
 
@@ -121,41 +78,9 @@ dotnet tool restore
 dotnet tool run reportgenerator "-reports:coverage-raw/**/coverage.cobertura.xml" "-targetdir:coverage-report" "-reporttypes:Html;TextSummary" "-assemblyfilters:+TaskManager.*.Domain;+TaskManager.*.Application"
 ```
 
-The measured line coverage on Domain and Application is 98.5%.
-
-## Configuration reference
-
-Set through `appsettings*.json`, user-secrets or environment variables (`Section__Key`).
-
-| Section | Key | Default / note |
-|---|---|---|
-| `Dynamo` | `ServiceUrl` | unset = real AWS; Development uses `http://localhost:8000` |
-| | `Region` | `us-east-1` |
-| | `TableName` | `TaskManager-Users` / `TaskManager-Tasks` |
-| | `CreateTablesIfMissing` | `false`; `true` in Development (in AWS, tables come from IaC) |
-| `Jwt` | `SigningKey` | **required**, at least 32 bytes, never committed; must be identical on both APIs |
-| | `SigningKeyParameterName` | unset locally; in AWS `/taskmanager/jwt-signing-key`, an SSM SecureString read at startup into `SigningKey` (a configured `SigningKey` wins) |
-| | `Issuer`, `Audience` | `taskmanager-users`, `taskmanager-api` |
-| | `LifetimeMinutes` | `60` |
-| `Seed` | `Enabled` | `false`; `true` in Development and in AWS. Seeding is idempotent. Outside Development it requires a private `DemoPassword`: the public default or a blank one fails startup |
-| | `DemoUserId`, `DemoEmail`, `DemoPassword`, `DemoFullName` | fixed demo user (`11111111-1111-1111-1111-111111111111`); `DemoPassword` defaults to the public `Demo123!` |
-| | `DemoPasswordParameterName` | unset locally; in AWS `/taskmanager/demo-password`, an SSM SecureString read at startup into `DemoPassword` (Users API) |
-| `Cors` | `AllowedOrigins` | `["http://localhost:4200"]` |
-| `OpenApi` | `Enabled` | `false`; `true` in AWS. Serves `/openapi/v1.json` and the Scalar UI at `/scalar/v1` outside Development (always on in Development) |
-| `RateLimiting` | `LoginPermitLimit`, `RegisterPermitLimit` | `5` per minute per IP each (Users API only) |
-| `ForwardedHeaders` | `KnownProxies`, `KnownNetworks` | unset = `X-Forwarded-For` ignored; set to the proxy IPs or CIDR ranges (CloudFront, ALB) to rate-limit and log the real client IP |
-
-The client reads `web/public/config.json` at startup, so one build runs in any environment:
-
-```json
-{ "usersApiUrl": "http://localhost:5080", "tasksApiUrl": "http://localhost:5090", "demoAccount": true }
-```
-
-`demoAccount` shows the demo credentials on the login page. The deployed `config.json` is generated with the AWS API URLs and no `demoAccount`: the demo user exists in AWS, but its password is private, so the page does not advertise it.
-
 ## API overview
 
-Interactive docs (Scalar): locally `http://localhost:5080/scalar/v1` and `http://localhost:5090/scalar/v1` (always on in Development), and `<api-url>/scalar/v1` on the deployed APIs (the API URLs are in the deploy job summary). Outside Development the docs are served only when `OpenApi:Enabled` is `true`, which the AWS stack sets; the OpenAPI document is at `/openapi/v1.json`. The deployed docs are public by design, so reviewers can browse the API without signing in; every endpoint except register, login and health still requires a token.
+Interactive docs (Scalar): locally `http://localhost:5080/scalar/v1` and `http://localhost:5090/scalar/v1` (always on in Development), and `<api-url>/scalar/v1` on the deployed APIs (the API URLs are in the deploy job summary). Outside Development the docs are served only when `OpenApi:Enabled` is `true`, which the AWS stack sets; the OpenAPI document is at `/openapi/v1.json`. The deployed docs are public by design, so reviewers can browse the API without signing in; every endpoint except register, login still requires a token.
 
 | API | Method and route | Auth | Notes |
 |---|---|---|---|
@@ -167,8 +92,6 @@ Interactive docs (Scalar): locally `http://localhost:5080/scalar/v1` and `http:/
 | Tasks | `GET /api/v1/tasks/{id}` | JWT | `404` for missing or another user's task |
 | Tasks | `PUT /api/v1/tasks/{id}` | JWT | `200`, `400` (same rules as create; `status` required), `401`, `404` |
 | Both | `GET /health`, `GET /health/ready` | anonymous | liveness and readiness (DynamoDB `DescribeTable`) |
-
-Errors are RFC 9457 ProblemDetails. Malformed JSON, a missing body or an unknown `status` return `400`, never `500`.
 
 ## Project layout
 
@@ -279,19 +202,6 @@ Tables, bucket contents and log groups are deleted with the stack.
 - **deploy** (`main` only, after the jobs above pass): deploys to AWS and smoke-tests the result; see [Deployment (AWS)](#deployment-aws). It also runs from Actions → CI → Run workflow.
 
 `.github/workflows/pr-review.yml` has Claude review each PR with fresh eyes against `.claude/rules/rules.md`. It is comment-only: it never approves, resolves threads or merges, and a human does that.
-
-### One-time setup (repository owner)
-
-1. **AI review secret** (uses a Claude Pro/Max subscription, not API billing):
-   - Locally, run `claude setup-token` and copy the token it prints.
-   - Settings → Secrets and variables → Actions → New repository secret named `CLAUDE_CODE_OAUTH_TOKEN`, or run `gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo <owner>/TaskManager`.
-   - Without it the review job skips itself. Comments are posted with the job's own `GITHUB_TOKEN` as `github-actions[bot]`.
-2. **Branch protection on `main`**: Settings → Branches → add a rule for `main` that:
-   - requires a pull request before merging, with at least 1 approval from a human, and dismisses stale approvals;
-   - requires status checks `backend`, `frontend` and `repo-hygiene` to pass, with branches up to date;
-   - blocks direct pushes (and force pushes and deletions).
-
-   These settings are not applied by the repository's code; the owner must set them.
 
 ## Known limitations
 
