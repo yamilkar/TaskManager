@@ -144,44 +144,6 @@ Expected cost for this exercise: **$0 per month**.
 - **Demo data**: on each cold start the APIs make sure the demo user `demo@taskmanager.dev` (private password from SSM) and its sample tasks exist. The login page does not show the demo option; reviewers sign in with the credentials you give them.
 - Until the AWS setup below is done, the `deploy` job is skipped, so CI stays green.
 
-### One-time AWS setup (repository owner)
-
-You need an AWS account and the AWS CLI signed in as an administrator (for example `aws sso login`). The pipeline itself never uses these credentials.
-
-```bash
-# 1. The JWT signing key and the demo user's private password (SecureStrings; CloudFormation cannot create these).
-#    Choose the demo password yourself (8-128 characters, at least one letter and one digit, like any account)
-#    and share it only with reviewers; the public Demo123! or a weaker password stops the Users API at startup.
-aws ssm put-parameter --region us-east-1 --name /taskmanager/jwt-signing-key --type SecureString --value "$(openssl rand -base64 48)"
-aws ssm put-parameter --region us-east-1 --name /taskmanager/demo-password --type SecureString --value '<your private demo password>'
-
-# 2. Prepare the account for the CDK (once per account and region)
-npx --yes aws-cdk@2.1148.1 bootstrap aws://<ACCOUNT_ID>/us-east-1
-
-# 3. The GitHub OIDC deploy role (prints DeployRoleArn). If the account already has the GitHub OIDC provider,
-#    add: -c githubOidcProviderArn=arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com
-cd infra && npx --yes aws-cdk@2.1148.1 deploy TaskManager-GitHubOidc
-
-# 4. REQUIRED: only main may deploy. A feature branch could edit ci.yml, so two settings enforce it outside the code:
-#    a) put the branch into GitHub's OIDC token subject; the deploy role only trusts subjects that end in
-#       environment:production:ref:refs/heads/main, so it refuses every token until this is set (fail closed)
-echo '{"use_default":false,"include_claim_keys":["repo","context","ref"]}' |
-  gh api -X PUT repos/<owner>/TaskManager/actions/oidc/customization/sub --input -
-#    b) let only main use the production environment
-gh api -X PUT repos/<owner>/TaskManager/environments/production --input - <<'JSON'
-{ "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true } }
-JSON
-gh api -X POST repos/<owner>/TaskManager/environments/production/deployment-branch-policies -f name=main -f type=branch
-
-# 5. Tell the workflow which role and region to use (repository variables, not secrets)
-gh variable set AWS_DEPLOY_ROLE_ARN --body "<DeployRoleArn>"
-gh variable set AWS_REGION --body us-east-1
-```
-
-Check step 4: `gh api repos/<owner>/TaskManager/actions/oidc/customization/sub` lists `repo`, `context` and `ref`, and Settings → Environments → `production` → Deployment branches shows only `main`. If the first deploy fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity`, step 4a is missing. Optionally add a required reviewer there to approve each deploy.
-
-Then run the first deploy manually (Actions → CI → Run workflow on `main`), or merge any change: with no successful deployment recorded yet, everything is deployed. After that, merges deploy what changed.
-
 ### Teardown
 
 ```bash
